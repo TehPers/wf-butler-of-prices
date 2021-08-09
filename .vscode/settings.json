@@ -1,0 +1,10 @@
+{
+  "rust-analyzer.checkOnSave.extraArgs": [
+    "--target-dir",
+    "target/rust-analyzer"
+  ],
+  "azureFunctions.deploySubpath": "func",
+  "azureFunctions.projectLanguage": "Custom",
+  "azureFunctions.projectRuntime": "~3",
+  "debug.internalConsoleOptions": "neverOpen"
+}
