@@ -247,6 +247,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "595d3cfa7a60d4555cb5067b99f07142a08ea778de5cf993f7b75c7d8fabc486"
 
 [[package]]
+name = "async-recursion"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7d78656ba01f1b93024b7c3a0467f1608e4be67d725749fdcd7d2c7678fd7a2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1985,7 +1996,16 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "wfinfo_azure",
  "wfinfo_lib",
+]
+
+[[package]]
+name = "wfinfo_azure"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -1993,6 +2013,7 @@ name = "wfinfo_lib"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-recursion",
  "bitflags",
  "chrono",
  "rand 0.8.4",
@@ -2001,6 +2022,25 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "wfinfo_processor"
+version = "0.1.0"
+dependencies = [
+ "actix-web",
+ "anyhow",
+ "derive_more",
+ "ed25519-dalek",
+ "envy",
+ "futures",
+ "hex",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "wfinfo_lib",
 ]
 
 [[package]]

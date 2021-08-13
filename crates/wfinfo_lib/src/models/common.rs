@@ -3,8 +3,7 @@ use chrono::{DateTime, FixedOffset, NaiveDateTime};
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
 use std::fmt::{Display, Formatter};
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize)]
-#[serde(transparent)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct Snowflake(u64);
 
 impl Snowflake {
@@ -47,6 +46,15 @@ impl Snowflake {
 impl Display for Snowflake {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl Serialize for Snowflake {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.0.to_string())
     }
 }
 

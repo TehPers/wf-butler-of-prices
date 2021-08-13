@@ -1,2 +1,2 @@
 [workspace]
-members = ["crates/wfinfo", "crates/wfinfo_lib"]
+members = ["crates/wfinfo", "crates/wfinfo_processor", "crates/wfinfo_lib", "crates/wfinfo_azure"]

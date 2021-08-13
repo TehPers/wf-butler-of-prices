@@ -1,6 +1,4 @@
-use crate::{
-    controllers::interactions_service, middleware::LogBody, models::Config,
-};
+use crate::models::Config;
 use actix_web::{middleware::Logger, web::Data, App, HttpServer};
 use anyhow::Context;
 use std::net::Ipv4Addr;
@@ -27,10 +25,8 @@ pub async fn start() -> anyhow::Result<()> {
         App::new()
             .app_data(Data::new(discord_client.clone()))
             .app_data(Data::new(config.clone()))
-            .service(interactions_service(&config))
-            // .service(commands_service(&config))
             // TODO: remove this at some point so no user data is logged
-            .wrap(LogBody)
+            // .wrap(LogBody)
             .wrap(logger)
     })
     .bind((Ipv4Addr::UNSPECIFIED, port))?

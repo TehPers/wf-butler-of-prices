@@ -1,17 +1,13 @@
-cargo-features = ["edition2021"]
-
 [package]
-name = "wfinfo"
+name = "wfinfo_processor"
 version = "0.1.0"
-edition = "2021"
-publish = false
+edition = "2018"
 
 [dependencies]
 serde = "1"
 serde_json = "1"
 envy = "0.4"
 wfinfo_lib = { path = "../wfinfo_lib" }
-wfinfo_azure = { path = "../wfinfo_azure" }
 tokio = { version = "1", features = ["full"] }
 anyhow = "1"
 tracing = "0.1"
@@ -27,7 +23,7 @@ features = ["compress-brotli", "compress-gzip", "compress-zstd", "rustls"]
 [dependencies.derive_more]
 version = "0.99"
 default-features = false
-features = ["display", "from", "into", "deref", "deref_mut"]
+features = ["display"]
 
 [dependencies.ed25519-dalek]
 version = "1"

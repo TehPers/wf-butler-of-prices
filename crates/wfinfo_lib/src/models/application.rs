@@ -17,7 +17,8 @@ pub struct Application {
     pub rpc_origins: Option<Vec<String>>,
     /// When `false` only app owner can join the app's bot to guilds.
     pub bot_public: bool,
-    /// When `true` the app's bot will only join upon completion of the full oauth2 code grant flow.
+    /// When `true` the app's bot will only join upon completion of the full
+    /// oauth2 code grant flow.
     pub bot_require_code_grant: bool,
     /// The url of the app's terms of service.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -28,19 +29,25 @@ pub struct Application {
     /// Partial user object containing info on the owner of the application.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owner: Option<User>,
-    /// If this application is a game sold on Discord, this field will be the summary field for the store page of its primary sku.
+    /// If this application is a game sold on Discord, this field will be the
+    /// summary field for the store page of its primary sku.
     pub summary: String,
-    /// The hex encoded key for verification in interactions and the GameSDK's GetTicket.
+    /// The hex encoded key for verification in interactions and the GameSDK's
+    /// GetTicket.
     pub verify_key: String,
-    /// If the application belongs to a team, this will be a list of the members of that team.
+    /// If the application belongs to a team, this will be a list of the
+    /// members of that team.
     pub team: Option<Team>,
-    /// If this application is a game sold on Discord, this field will be the guild to which it has been linked.
+    /// If this application is a game sold on Discord, this field will be the
+    /// guild to which it has been linked.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub guild_id: Option<Snowflake>,
-    /// If this application is a game sold on Discord, this field will be the id of the "Game SKU" that is created, if exists.
+    /// If this application is a game sold on Discord, this field will be the
+    /// id of the "Game SKU" that is created, if exists.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub primary_sku_id: Option<Snowflake>,
-    /// If this application is a game sold on Discord, this field will be the URL slug that links to the store page.
+    /// If this application is a game sold on Discord, this field will be the
+    /// URL slug that links to the store page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub slug: Option<String>,
     /// The application's default rich presence invite cover image hash.
@@ -62,4 +69,18 @@ bitflags! {
         const VERIFICATION_PENDING_GUILD_LIMIT = 1 << 16;
         const EMBEDDED = 1 << 17;
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ClientCredentials {
+    pub access_token: String,
+    pub token_type: String,
+    pub expires_in: i32,
+    pub scope: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ClientCredentialsRequest {
+    pub grant_type: String,
+    pub scope: String,
 }

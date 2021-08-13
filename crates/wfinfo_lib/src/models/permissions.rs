@@ -4,8 +4,7 @@ use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::Formatter;
 
 bitflags! {
-    #[derive(Default, Serialize, Deserialize)]
-    #[serde(transparent)]
+    #[derive(Default)]
     pub struct Permissions: u64 {
         const CREATE_INSTANT_INVITE = 1 << 0;
         const KICK_MEMBERS = 1 << 1;
@@ -44,6 +43,48 @@ bitflags! {
         const USE_PUBLIC_THREADS = 1 << 35;
         const USE_PRIVATE_THREADS = 1 << 36;
         const USE_EXTERNAL_STICKERS = 1 << 37;
+    }
+}
+
+impl Serialize for Permissions {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.bits().to_string())
+    }
+}
+
+impl<'de> Deserialize<'de> for Permissions {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct SnowflakeVisitor;
+        impl<'de> Visitor<'de> for SnowflakeVisitor {
+            type Value = Permissions;
+
+            fn expecting(&self, f: &mut Formatter) -> std::fmt::Result {
+                write!(f, "a string containing a parseable u64")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                let permissions: u64 =
+                    v.parse().map_err(serde::de::Error::custom)?;
+                let mask = Permissions::all().bits();
+                Permissions::from_bits(permissions & mask).ok_or_else(|| {
+                    serde::de::Error::custom(format!(
+                        "invalid permissions: {:b}",
+                        permissions
+                    ))
+                })
+            }
+        }
+
+        deserializer.deserialize_str(SnowflakeVisitor)
     }
 }
 

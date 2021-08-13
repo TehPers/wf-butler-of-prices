@@ -9,7 +9,6 @@ use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-// TODO: internally tagged enum instead, if possible
 serde_inner_enum! {
     #[derive(Clone, Debug)]
     pub enum Component = "type" {
@@ -75,7 +74,8 @@ pub struct ApplicationCommand {
     /// The parameters for the command.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub options: Option<Vec<ApplicationCommandOption>>,
-    /// Whether the command is enabled by default when the app is added to a guild (default `true`).
+    /// Whether the command is enabled by default when the app is added to a
+    /// guild (default `true`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub default_permission: Option<bool>,
 }
@@ -270,11 +270,10 @@ pub struct ApplicationCommandInteractionData {
     pub id: Snowflake,
     /// The name of the invoked command.
     pub name: String,
-    /// For components, the `custom_id` of the component.
-    pub custom_id: String,
     /// For components, the type of the component.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     #[serde(flatten)]
-    pub component_type: ComponentType,
+    pub component_type: Option<ComponentType>,
 }
 
 serde_inner_enum! {
@@ -282,12 +281,16 @@ serde_inner_enum! {
     pub enum ComponentType = "component_type" {
         ActionRow = 1,
         Button = 2 {
+            /// The `custom_id` of the component.
+            custom_id: String,
             /// Converted users + roles + channels.
             [?] resolved: Option<ApplicationCommandInteractionDataResolved>,
             // /// The params + values from the user.
             // TODO [?] options: Option<Vec<ApplicationCommandInteractionDataOption>>,
         },
         SelectMenu = 3 {
+            /// The `custom_id` of the component.
+            custom_id: String,
             /// Converted users + roles + channels.
             [?] resolved: Option<ApplicationCommandInteractionDataResolved>,
             // /// The params + values from the user.
@@ -362,4 +365,33 @@ bitflags! {
         /// Only the user receiving the message can see it.
         const EPHEMERAL = 1 << 6;
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CreateApplicationCommand {
+    /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
+    pub name: String,
+    /// 1-100 character description.
+    pub description: String,
+    /// The parameters for the command.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub options: Option<Vec<ApplicationCommandOption>>,
+    /// Whether the command is enabled by default when the app is added to a
+    /// guild (default `true`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_permission: Option<bool>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CreateGuildApplicationCommandPermissions {
+    /// The permissions for the command in the guild.
+    pub permissions: Vec<ApplicationCommandPermission>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BatchEditGuildApplicationCommandPermissions {
+    /// The id of the command.
+    pub id: Snowflake,
+    /// The permissions for the command in the guild.
+    pub permissions: Vec<ApplicationCommandPermission>,
 }

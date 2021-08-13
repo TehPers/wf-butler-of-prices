@@ -188,7 +188,8 @@ impl GuildFeature {
     pub const BANNER: GuildFeature = GuildFeature(Cow::Borrowed("BANNER"));
     /// Guild has access to use commerce features (i.e. create store channels).
     pub const COMMERCE: GuildFeature = GuildFeature(Cow::Borrowed("COMMERCE"));
-    /// Guild can enable welcome screen, Membership Screening, stage channels and discovery, and receives community updates.
+    /// Guild can enable welcome screen, Membership Screening, stage channels
+    /// and discovery, and receives community updates.
     pub const COMMUNITY: GuildFeature =
         GuildFeature(Cow::Borrowed("COMMUNITY"));
     /// Guild is able to be discovered in the directory.
@@ -208,7 +209,8 @@ impl GuildFeature {
     /// Guild is partnered.
     pub const PARTNERED: GuildFeature =
         GuildFeature(Cow::Borrowed("PARTNERED"));
-    /// Guild can be previewed before joining via Membership Screening or the directory.
+    /// Guild can be previewed before joining via Membership Screening or the
+    /// directory.
     pub const PREVIEW_ENABLED: GuildFeature =
         GuildFeature(Cow::Borrowed("PREVIEW_ENABLED"));
     /// Guild has access to set a vanity URL.
@@ -216,7 +218,8 @@ impl GuildFeature {
         GuildFeature(Cow::Borrowed("VANITY_URL"));
     /// Guild is verified.
     pub const VERIFIED: GuildFeature = GuildFeature(Cow::Borrowed("VERIFIED"));
-    /// Guild has access to set 384kbps bitrate in voice (previously VIP voice servers).
+    /// Guild has access to set 384kbps bitrate in voice (previously VIP voice
+    /// servers).
     pub const VIP_REGIONS: GuildFeature =
         GuildFeature(Cow::Borrowed("VIP_REGIONS"));
     /// Guild has enabled the welcome screen.
@@ -306,7 +309,8 @@ pub struct Integration {
     /// Id that this integration uses for "subscribers".
     #[serde(default, skip_serializing_if = "Option::is_none")]
     role_id: Option<Snowflake>,
-    /// Whether emoticons should be synced for this integration (twitch only currently).
+    /// Whether emoticons should be synced for this integration (twitch only
+    /// currently).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     enable_emoticons: Option<bool>,
     /// The behavior of expiring subscribers.
@@ -379,7 +383,7 @@ pub struct Ban {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WelcomeScreen {
-    ///	The server description shown in the welcome screen.
+    /// 	The server description shown in the welcome screen.
     description: Option<String>,
     /// The channels shown in the welcome screen, up to 5.
     welcome_channels: Vec<WelcomeScreenChannel>,
@@ -393,6 +397,7 @@ pub struct WelcomeScreenChannel {
     description: String,
     /// The emoji id, if the emoji is custom.
     emoji_id: Option<Snowflake>,
-    /// The emoji name if custom, the unicode character if standard, or null if no emoji is set.
+    /// The emoji name if custom, the unicode character if standard, or null if
+    /// no emoji is set.
     emoji_name: Option<String>,
 }

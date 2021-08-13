@@ -46,7 +46,7 @@ dependencies = ["pre-publish"]
 env_files = [".env"]
 script = '''
 cd func
-func azure functionapp publish tactician-bot
+func azure functionapp publish $FUNCTION_APP_NAME
 '''
 
 [tasks.build]
@@ -67,7 +67,8 @@ args = ["test"]
 [tasks.run]
 env_files = [".env"]
 category = "Run"
-dependencies = ["dev-test-flow"]
+# dependencies = ["dev-test-flow"]
+dependencies = ["pre-build", "build", "post-build"]
 script = '''
 cd func
 func start --port 7071

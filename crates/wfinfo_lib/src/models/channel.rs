@@ -87,7 +87,8 @@ impl ChannelType {
     pub const GUILD_NEWS_THREAD: ChannelType = ChannelType(10);
     /// A temporary sub-channel within a GUILD_TEXT channel.
     pub const GUILD_PUBLIC_THREAD: ChannelType = ChannelType(11);
-    /// A temporary sub-channel within a GUILD_TEXT channel that is only viewable by those invited and those with the MANAGE_THREADS permission.
+    /// A temporary sub-channel within a GUILD_TEXT channel that is only
+    /// viewable by those invited and those with the MANAGE_THREADS permission.
     pub const GUILD_PRIVATE_THREAD: ChannelType = ChannelType(12);
     /// A voice channel for hosting events with an audience.
     pub const GUILD_STAGE_VOICE: ChannelType = ChannelType(13);
@@ -292,11 +293,14 @@ impl OverwriteType {
 pub struct ThreadMetadata {
     /// Whether the thread is archived.
     pub archived: bool,
-    /// Duration in minutes to automatically archive the thread after recent activity.
+    /// Duration in minutes to automatically archive the thread after recent
+    /// activity.
     pub auto_archive_duration: u32,
-    /// Timestamp when the thread's archive status was last changed, used for calculating recent activity.
+    /// Timestamp when the thread's archive status was last changed, used for
+    /// calculating recent activity.
     pub archive_timestamp: Timestamp,
-    /// Whether the thread is locked; when a thread is locked, only users with MANAGE_THREADS can unarchive it.
+    /// Whether the thread is locked; when a thread is locked, only users with
+    /// MANAGE_THREADS can unarchive it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub locked: Option<bool>,
 }
@@ -499,7 +503,8 @@ pub struct AllowedMentions {
     /// Array of user_ids to mention (Max size of 100).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub users: Option<Vec<Snowflake>>,
-    /// For replies, whether to mention the author of the message being replied to (default `false`).
+    /// For replies, whether to mention the author of the message being replied
+    /// to (default `false`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub replied_user: Option<bool>,
 }
@@ -518,4 +523,64 @@ impl AllowedMentionType {
     /// Controls @everyone and @here mentions.
     pub const EVERYONE: AllowedMentionType =
         AllowedMentionType(Cow::Borrowed("everyone"));
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct CreateWebhookMessage {
+    /// The message contents (up to 2000 characters).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    content: Option<String>,
+    /// Override the default username of the webhook.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    username: Option<String>,
+    /// Override the default avatar of the webhook.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    avatar_url: Option<String>,
+    /// True if this is a TTS message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    tts: Option<bool>,
+    // /// The contents of the file being sent.
+    // #[serde(default, skip_serializing_if = "Option::is_none")]
+    // TODO: file: Option<file contents>,
+    /// Embedded rich content.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    embeds: Option<Vec<Embed>>,
+    /// JSON encoded body of non-file params.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    payload_json: Option<String>,
+    /// Allowed mentions for the message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    allowed_mentions: Option<AllowedMentions>,
+    /// The components to include with the message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    components: Option<Vec<Component>>,
+    /// For followup messages, can be set to
+    /// [EPHEMERAL](MessageFlags::EPHEMERAL).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    flags: Option<MessageFlags>,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct EditWebhookMessage {
+    /// The message contents (up to 2000 characters).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    content: Option<String>,
+    /// Embedded rich content.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    embeds: Option<Vec<Embed>>,
+    // /// The contents of the file being sent/edited.
+    // #[serde(default, skip_serializing_if = "Option::is_none")]
+    // TODO: file: Option<file contents>,
+    /// JSON encoded body of non-file params (multipart/form-data only).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    payload_json: Option<String>,
+    /// Allowed mentions for the message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    allowed_mentions: Option<AllowedMentions>,
+    /// Attached files to keep.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    attachments: Option<Vec<Attachment>>,
+    /// The components to include with the message.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    components: Option<Vec<Component>>,
 }

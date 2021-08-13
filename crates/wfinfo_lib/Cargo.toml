@@ -16,6 +16,7 @@ anyhow = "1"
 rand = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 bitflags = "1"
+async-recursion = "0.3"
 
 [dependencies.reqwest]
 version = "0.11"
