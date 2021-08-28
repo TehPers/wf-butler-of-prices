@@ -1,0 +1,31 @@
+@port={{$dotenv PORT}}
+@baseUrl=http://localhost:{{port}}/api
+
+### Ping
+POST {{baseUrl}}/interactions
+content-type: application/json
+
+{
+    "id": "1",
+    "application_id": "873144204317048833",
+    "token": "asdfghjkl",
+    "version": 1,
+    "type": 1
+}
+
+### Create interaction
+POST {{baseUrl}}/interactions
+content-type: application/json
+
+{
+    "id": "1",
+    "application_id": "873144204317048833",
+    "token": "asdfghjkl",
+    "version": 1,
+    "type": 2,
+    "channel_id": "1234",
+    "data": {
+        "id": "1",
+        "name": "test"
+    }
+}

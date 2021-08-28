@@ -56,7 +56,7 @@ pub enum InteractionError {
     InvalidSignature(CheckSignatureError),
     #[display(fmt = "unauthorized application ID")]
     UnauthorizedApplication,
-    #[display(fmt = "invalid request body")]
+    #[display(fmt = "{}", _0)]
     InvalidBody(serde_json::Error),
 }
 
@@ -84,7 +84,6 @@ impl ResponseError for InteractionError {
                 body: self.to_string(),
             }),
         };
-        dbg!(format!("{:?}", body));
         HttpResponse::Ok().json(body)
     }
 }

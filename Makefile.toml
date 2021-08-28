@@ -73,5 +73,5 @@ category = "Run"
 dependencies = ["pre-build", "build", "post-build"]
 script = '''
 cd func
-func start --port 7071
+func start --custom --port $PORT
 '''
