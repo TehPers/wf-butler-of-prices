@@ -14,11 +14,11 @@
       "name": "$return"
     },
     {
-      "type": "queue",
+      "type": "serviceBus",
       "direction": "out",
       "name": "message",
       "queueName": "interactions",
-      "connection": "QUEUE_CONNECTION_STRING"
+      "connection": "InteractionsQueue"
     }
   ]
 }

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use wfinfo_azure::functions::{HttpInput, HttpOutput, ServiceBusOutput};
-use wfinfo_lib::models::{Interaction, InteractionResponse};
+use wfinfo_azure::functions::{HttpInput, ServiceBusOutput};
+use wfinfo_lib::models::Interaction;
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct InteractionInputData<R = HttpInput<Interaction>> {
@@ -9,6 +9,5 @@ pub struct InteractionInputData<R = HttpInput<Interaction>> {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct InteractionOutputData {
-    pub response: HttpOutput<InteractionResponse>,
     pub message: ServiceBusOutput,
 }

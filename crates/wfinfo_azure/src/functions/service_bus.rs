@@ -5,4 +5,4 @@ pub struct ServiceBusInput {
     // TODO
 }
 
-pub type ServiceBusOutput = String;
+pub type ServiceBusOutput = Vec<String>;

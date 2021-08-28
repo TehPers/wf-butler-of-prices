@@ -2,6 +2,8 @@
 CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
 FUNC_BIN_DIR = "${CARGO_MAKE_WORKING_DIRECTORY}/func/bin"
 BINARY_NAME = "wfinfo"
+PUBLISH_CARGO_TARGET_DIR = "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/target/publish"
+PUBLISH_BUILD_TARGET = "x86_64-unknown-linux-musl"
 
 [config]
 default_to_workspace = false
@@ -25,15 +27,15 @@ category = "Publish"
 [tasks.publish-build]
 category = "Publish"
 dependencies = ["pre-publish-build"]
-env = { CARGO_TARGET_DIR = "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/target/publish" }
+env = { CARGO_TARGET_DIR = "${PUBLISH_CARGO_TARGET_DIR}" }
 description = "Builds the application"
 command = "cargo"
-args = ["build", "--release", "--target", "x86_64-unknown-linux-musl"]
+args = ["build", "--release", "--target", "${PUBLISH_BUILD_TARGET}"]
 
 [tasks.post-publish-build]
 category = "Publish"
 dependencies = ["publish-build"]
-env = { OUT_PATH = "${CARGO_MAKE_WORKING_DIRECTORY}/target/cargo/debug/$BINARY_NAME" }
+env = { OUT_PATH = "${PUBLISH_CARGO_TARGET_DIR}/${PUBLISH_BUILD_TARGET}/release/${BINARY_NAME}" }
 script = '''
 mkdir -p "$FUNC_BIN_DIR"
 cp "$OUT_PATH" "$FUNC_BIN_DIR/handler"

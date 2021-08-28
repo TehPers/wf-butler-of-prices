@@ -119,7 +119,9 @@ where
                     .and_then(|signature| hex::decode(signature).ok())
                     .and_then(|signature| signature.try_into().ok())
                     .map(|signature| Signature::new(signature))
-                    .ok_or(CheckSignatureError::InvalidSignature)
+                    .ok_or(CheckSignatureError::InvalidSignature(
+                        "<trimmed>".to_string(),
+                    ))
             });
         let public_key = self.public_key.clone();
 
@@ -149,7 +151,7 @@ where
             message.push_str(&body);
             public_key
                 .verify(message.as_bytes(), &signature)
-                .map_err(|_| CheckSignatureError::InvalidSignature)?;
+                .map_err(|_| CheckSignatureError::VerificationFailed)?;
 
             // Reset payload
             let payload = Bytes::from(payload);

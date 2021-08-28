@@ -17,7 +17,7 @@ pub fn commands_service(config: &Config) -> impl HttpServiceFactory {
     scope("/api/commands")
         .wrap(Condition::new(
             !config.ignore_signature,
-            CheckEd25519Signature::new(config.admin_public_key.0.clone()),
+            CheckEd25519Signature::new(config.admin_public_key.clone().into()),
         ))
         .service(handle_command)
 }

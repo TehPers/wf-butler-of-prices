@@ -1,6 +1,9 @@
-use actix_web::{http::StatusCode, ResponseError};
-use derive_more::Display;
-use std::borrow::Cow;
+use actix_web::{http::StatusCode, HttpResponse, ResponseError};
+use derive_more::{Display, From};
+use std::{borrow::Cow, collections::HashMap};
+use wfinfo_azure::functions::{FunctionsOutput, RawHttpOutput};
+
+use super::InteractionOutputData;
 
 #[derive(Clone, Debug, Display)]
 pub enum CheckSignatureError {
@@ -15,8 +18,10 @@ pub enum CheckSignatureError {
     },
     #[display(fmt = "invalid request timestamp")]
     InvalidTimestamp,
-    #[display(fmt = "invalid request signature")]
-    InvalidSignature,
+    #[display(fmt = "invalid request signature: '{}'", _0)]
+    InvalidSignature(String),
+    #[display(fmt = "verification failed")]
+    VerificationFailed,
     #[display(fmt = "request expired")]
     RequestExpired,
 }
@@ -32,13 +37,14 @@ impl ResponseError for CheckSignatureError {
                 *status_code
             }
             CheckSignatureError::InvalidTimestamp
-            | CheckSignatureError::InvalidSignature
+            | CheckSignatureError::InvalidSignature(..)
+            | CheckSignatureError::VerificationFailed
             | CheckSignatureError::RequestExpired => StatusCode::UNAUTHORIZED,
         }
     }
 }
 
-#[derive(Clone, Debug, Display)]
+#[derive(Debug, Display, From)]
 pub enum InteractionError {
     #[display(fmt = "{}", message)]
     BadRequest { message: Cow<'static, str> },
@@ -54,12 +60,6 @@ pub enum InteractionError {
     InvalidBody(serde_json::Error),
 }
 
-impl From<CheckSignatureError> for InteractionError {
-    fn from(inner: CheckSignatureError) -> Self {
-        InteractionError::InvalidSignature(inner)
-    }
-}
-
 impl ResponseError for InteractionError {
     fn status_code(&self) -> StatusCode {
         match self {
@@ -72,6 +72,20 @@ impl ResponseError for InteractionError {
             InteractionError::UnauthorizedApplication => StatusCode::FORBIDDEN,
             InteractionError::InvalidBody(_) => StatusCode::BAD_REQUEST,
         }
+    }
+
+    fn error_response(&self) -> HttpResponse {
+        let body = FunctionsOutput {
+            outputs: InteractionOutputData { message: vec![] },
+            logs: vec![],
+            return_value: Some(RawHttpOutput {
+                status: self.status_code().as_u16(),
+                headers: HashMap::new(),
+                body: self.to_string(),
+            }),
+        };
+        dbg!(format!("{:?}", body));
+        HttpResponse::Ok().json(body)
     }
 }
 
