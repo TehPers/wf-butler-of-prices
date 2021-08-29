@@ -1,193 +1,34 @@
 use crate::{
-    client::DiscordRestClient,
     models::{
         ApplicationCommand, BatchEditGuildApplicationCommandPermissions,
         Channel, ClientCredentials, ClientCredentialsRequest,
         CreateApplicationCommand, CreateGuildApplicationCommandPermissions,
-        CreateMessage, CreateWebhookMessage, EditWebhookMessage,
-        GuildApplicationCommandPermissions, InteractionResponse, Message,
-        Snowflake,
+        CreateMessage as CreateMessageModel, CreateWebhookMessage,
+        EditWebhookMessage, GuildApplicationCommandPermissions,
+        InteractionResponse, Message, Snowflake,
     },
     request::RateLimitBucket,
+    routes,
 };
-use anyhow::Context;
 use reqwest::{Client, Method, RequestBuilder};
-use std::{
-    fmt::{Display, Formatter},
-    sync::Arc,
-};
-use tracing::instrument;
+use std::{fmt::Display, sync::Arc};
 
-macro_rules! routes {
-    (@req_body $builder:expr, [$body_type:ident] $body:expr) => {
-        $builder.$body_type($body)
-    };
-    (@req_body $builder:expr, $body:expr) => {
-        routes!(@req_body $builder, [json] $body)
-    };
-    (@req_body $builder:expr,) => {
-        $builder
-    };
-    (@major_params $params:expr) => {
-        $params
-    };
-    (@major_params) => {
-        Default::default()
-    };
-    (@query $builder:expr, $query:expr) => {
-        $builder.query($query)
-    };
-    (@query $builder:expr,) => {
-        $builder
-    };
-    (@is_auth $is_auth:expr) => {
-        $is_auth
-    };
-    (@is_auth) => {
-        false
-    };
-    ($(
-        (
-            $variant:ident {
-                $($url_param:ident : $url_param_type:ty),*
-                $(,)?
-            },
-            $(body = $([$body_type:ident])? $body_param:ident : $body_param_type:ty,)?
-            $(extra = {
-                $($extra_field:ident : $extra_field_type:ty),*
-                $(,)?
-            },)?
-            method = $method:ident $route:expr,
-            $(query = $query:expr,)?
-            $(major_params = $major_params:expr,)?
-            $(processor = |$req:ident| $processor:expr,)?
-            $(is_auth = $is_auth:expr,)?
-            helper = $helper:ident -> $response:ty
-            $(,)?
-        )
-    ),* $(,)?) => {
-        #[derive(Clone, Debug)]
-        pub enum Route {
-            $(
-                $variant {
-                    $($url_param: $url_param_type,)*
-                    $($body_param: $body_param_type,)?
-                    $($($extra_field: $extra_field_type,)*)?
-                },
-            )*
-        }
+/// A route within the Discord REST API.
+///
+/// The route's [`Display`] implementation determines the path in the Discord
+/// REST API.
+pub trait Route: Display + Send {
+    /// The HTTP method used for requests to this route.
+    fn method(&self) -> Method;
 
-        impl Route {
-            pub fn method(&self) -> Method {
-                match self {
-                    $(Route::$variant { .. } => Method::$method,)*
-                }
-            }
+    /// The bucket associated with this route.
+    fn bucket(&self) -> RateLimitBucket;
 
-            pub fn url(&self) -> String {
-                format!("{}{}", Self::BASE_URL, self)
-            }
+    /// Creates an HTTP request to this route.
+    fn make_request(&self, client: &Client, base_url: &str) -> RequestBuilder;
 
-            pub fn bucket(&self) -> RateLimitBucket {
-                match self {
-                    $(
-                        #[allow(unused_variables)]
-                        Route::$variant { $($url_param,)* .. } => {
-                            RateLimitBucket::new(
-                                Method::$method,
-                                $route,
-                                routes!(@major_params $($major_params)?),
-                            )
-                        },
-                    )*
-                }
-            }
-
-            pub fn is_auth(&self) -> bool {
-                match self {
-                    $(
-                        Route::$variant { .. } => {
-                            routes!(@is_auth $($is_auth)?)
-                        },
-                    )*
-                }
-            }
-
-            pub fn make_request(&self, client: &Client) -> RequestBuilder {
-                match self {
-                    $(
-                        Route::$variant { $($url_param,)* $($body_param,)? $($($extra_field,)*)? } => {
-                            // Build request URL
-                            let url = format!(
-                                concat!("{}", $route),
-                                Self::BASE_URL,
-                                $($url_param = $url_param),*
-                            );
-
-                            // Build request
-                            let request = client.request(Method::$method, url);
-
-                            // Body
-                            let request = routes!(@req_body request, $($([$body_type])? &$body_param)?);
-
-                            // Query string
-                            let request = routes!(@query request, $($query)?);
-
-                            // Processor
-                            $(
-                                let $req = request;
-                                let request = $processor;
-                            )?
-
-                            request
-                        }
-                    )*
-                }
-            }
-
-            $(
-                #[instrument]
-                pub async fn $helper(
-                    client: &DiscordRestClient
-                    $(, $url_param: $url_param_type)*
-                    $(, $body_param: $body_param_type)?
-                    $($(, $extra_field: $extra_field_type)*)?
-                ) -> anyhow::Result<$response> {
-                    let route = Self::$variant {
-                        $($url_param,)*
-                        $($body_param,)?
-                        $($($extra_field,)*)?
-                    };
-
-                    let response = client.request(route)
-                        .await
-                        .context("error sending request")?
-                        .json()
-                        .await
-                        .context("error parsing response")?;
-
-                    Ok(response)
-                }
-            )*
-        }
-
-        impl Display for Route {
-            fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-                match self {
-                    $(
-                        Route::$variant { $(ref $url_param,)* .. } => {
-                            write!(f, $route, $($url_param = $url_param),*)
-                        }
-                    )*
-                }
-            }
-        }
-    };
-}
-
-impl Route {
-    /// Base Discord API url (v9).
-    pub const BASE_URL: &'static str = "https://discord.com/api/v9";
+    /// Whether this HTTP request must be authenticated.
+    fn needs_auth(&self) -> bool;
 }
 
 routes! {
@@ -223,7 +64,7 @@ routes! {
     ),
     (
         CreateMessage { channel_id: Snowflake },
-        body = message: CreateMessage,
+        body = message: CreateMessageModel,
         method = POST "/channels/{channel_id}/messages",
         major_params = [channel_id.to_u64(), 0],
         helper = create_message -> Message,
@@ -367,7 +208,7 @@ routes! {
         extra = { client_id: Snowflake, client_secret: Arc<String> },
         method = POST "/oauth2/token",
         processor = |req| req.basic_auth(client_id, Some(client_secret)),
-        is_auth = true,
+        needs_auth = false,
         helper = authenticate_client_credentials_grant -> ClientCredentials,
     ),
 }

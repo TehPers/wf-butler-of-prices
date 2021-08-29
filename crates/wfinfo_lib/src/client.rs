@@ -1,18 +1,18 @@
 use crate::{
-    http::Route,
+    http::{authenticate_client_credentials_grant, Route},
     models::{ClientCredentialsRequest, RateLimit, Snowflake},
     request::{RateLimitBucket, RateLimiter},
 };
-use anyhow::{bail, Context};
 use async_recursion::async_recursion;
 use chrono::Utc;
+use derive_more::{Display, Error};
 use rand::{
     distributions::{Distribution, Uniform},
     prelude::StdRng,
     SeedableRng,
 };
 use reqwest::{
-    header::{HeaderMap, HeaderValue, AUTHORIZATION},
+    header::{HeaderValue, AUTHORIZATION},
     Client, Response, StatusCode,
 };
 use std::{collections::HashMap, sync::Arc, time::Duration};
@@ -33,25 +33,19 @@ pub struct DiscordRestClient {
 }
 
 impl DiscordRestClient {
+    pub const BASE_URL: &'static str = "https://discord.com/api/v9";
     const MAX_ATTEMPTS: u64 = 10;
 
     pub fn new(
         client_id: Snowflake,
         client_secret: String,
-    ) -> anyhow::Result<Self> {
-        let mut headers = HeaderMap::new();
-        let auth_value =
-            HeaderValue::from_str(&format!("Bearer {}", client_secret))
-                .context("invalid token")?;
-        headers.insert(AUTHORIZATION, auth_value);
-
+    ) -> Result<Self, CreateClientError> {
         let http_client = Client::builder()
-            .default_headers(headers)
             .timeout(Duration::from_secs(30))
             .https_only(true)
             .user_agent(concat!("TEST_BOT/", env!("CARGO_PKG_VERSION")))
             .build()
-            .context("error creating HTTP client")?;
+            .map_err(CreateClientError::ClientCreationFailed)?;
 
         Ok(DiscordRestClient {
             http_client,
@@ -64,10 +58,12 @@ impl DiscordRestClient {
     }
 
     #[async_recursion]
-    #[instrument]
-    pub async fn request(&self, route: Route) -> anyhow::Result<Response> {
-        debug!(?route, "outgoing request");
-        // debug!(url=?route.url(), "outgoing request");
+    #[instrument(skip(self, route))]
+    pub async fn request<R: Route>(
+        &self,
+        route: R,
+    ) -> Result<Response, RequestError> {
+        debug!(%route, "outgoing request");
 
         let bucket = route.bucket();
         let mut attempt = 0u64;
@@ -86,9 +82,7 @@ impl DiscordRestClient {
             }
 
             // Authentication
-            let auth_header = if route.is_auth() {
-                None
-            } else {
+            let auth_header = if route.needs_auth() {
                 debug!("checking for access token");
                 let access_token_guard = self.access_token.read().await;
                 let auth_header = if let Some(access_token) =
@@ -96,7 +90,7 @@ impl DiscordRestClient {
                 {
                     // Fast path - no need to update access token
                     HeaderValue::from_str(&format!("Bearer {}", access_token))
-                        .context("invalid token")?
+                        .map_err(|_| RequestError::AccessTokenInvalid)?
                 } else {
                     // Slow path - write lock + verify access token again
                     debug!("checking again for access token");
@@ -108,11 +102,11 @@ impl DiscordRestClient {
                             "Bearer {}",
                             access_token
                         ))
-                        .context("invalid token")?
+                        .map_err(|_| RequestError::AccessTokenInvalid)?
                     } else {
                         debug!("fetching credentials");
                         let credentials =
-                            Route::authenticate_client_credentials_grant(
+                            authenticate_client_credentials_grant(
                                 self,
                                 ClientCredentialsRequest {
                                     grant_type: "client_credentials".to_owned(),
@@ -128,11 +122,13 @@ impl DiscordRestClient {
                             "Bearer {}",
                             access_token
                         ))
-                        .context("invalid token")?
+                        .map_err(|_| RequestError::AccessTokenInvalid)?
                     }
                 };
 
                 Some(auth_header)
+            } else {
+                None
             };
 
             // Rate limit
@@ -148,7 +144,8 @@ impl DiscordRestClient {
             limiter.wait().await;
 
             // Build request
-            let mut request = route.make_request(&self.http_client);
+            let mut request =
+                route.make_request(&self.http_client, Self::BASE_URL);
             if let Some(auth_header) = auth_header {
                 request = request.header(AUTHORIZATION, auth_header);
             }
@@ -180,7 +177,7 @@ impl DiscordRestClient {
                 let limit: RateLimit = response
                     .json()
                     .await
-                    .context("error parsing global rate limit response")?;
+                    .map_err(RequestError::GlobalRateLimitParseError)?;
 
                 warn!(?limit, "hit global rate limit");
                 sleep(Duration::from_secs_f32(limit.retry_after)).await;
@@ -214,23 +211,49 @@ impl DiscordRestClient {
                         && response.status() != StatusCode::REQUEST_TIMEOUT =>
                 {
                     error!(?response, "request failed (client failure)");
-                    response.error_for_status().context("request failed")?;
-                    bail!("request failed");
+                    response
+                        .error_for_status()
+                        .map_err(RequestError::RequestFailed)?;
+                    return Err(RequestError::RequestFailedUnknown);
                 }
                 Ok(response) => {
                     // Transient failure, retry request
                     warn!(?response, "request failed (transient failure)")
                 }
                 Err(error) => {
-                    return Err(error).context("error sending request");
+                    return Err(RequestError::RequestFailed(error));
                 }
             }
 
             // Update attempt number
             attempt = attempt.saturating_add(1);
             if attempt >= Self::MAX_ATTEMPTS {
-                bail!("request failed");
+                return Err(RequestError::MaxAttemptsReached);
             }
         }
     }
+}
+
+#[derive(Debug, Display, Error)]
+#[non_exhaustive]
+pub enum CreateClientError {
+    #[display(fmt = "error creating reqwest 'Client'")]
+    ClientCreationFailed(reqwest::Error),
+}
+
+#[derive(Debug, Display, Error)]
+#[non_exhaustive]
+pub enum RequestError {
+    #[display(fmt = "invalid access token")]
+    AccessTokenInvalid,
+    #[display(fmt = "max attempts reached")]
+    MaxAttemptsReached,
+    #[display(fmt = "unable to parse global rate limit")]
+    GlobalRateLimitParseError(reqwest::Error),
+    #[display(fmt = "error sending request")]
+    RequestFailed(reqwest::Error),
+    #[display(fmt = "error sending request")]
+    RequestFailedUnknown,
+    #[display(fmt = "error parsing response")]
+    ResponseParseError(reqwest::Error),
 }

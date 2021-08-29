@@ -2012,10 +2012,10 @@ dependencies = [
 name = "wfinfo_lib"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "async-recursion",
  "bitflags",
  "chrono",
+ "derive_more",
  "rand 0.8.4",
  "reqwest",
  "serde",

@@ -1,7 +1,9 @@
-use anyhow::Context;
 use chrono::{DateTime, FixedOffset, NaiveDateTime};
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize};
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    num::TryFromIntError,
+};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct Snowflake(u64);
@@ -21,10 +23,9 @@ impl Snowflake {
         self.0
     }
 
-    pub fn timestamp(self) -> anyhow::Result<Timestamp> {
+    pub fn timestamp(self) -> Result<Timestamp, TryFromIntError> {
         let timestamp = (self.0 >> 22) + Self::DISCORD_EPOCH;
-        let timestamp =
-            timestamp.try_into().context("timestamp out of range")?;
+        let timestamp = timestamp.try_into()?;
         let naive = NaiveDateTime::from_timestamp(timestamp, 0);
         let datetime = DateTime::from_utc(naive, FixedOffset::east(0));
         Ok(Timestamp(datetime))

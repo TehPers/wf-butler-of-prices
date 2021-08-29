@@ -8,9 +8,11 @@ use actix_web::{
     post,
     web::{scope, Data, Json},
 };
+use anyhow::Context;
 use tracing::{error, instrument};
 use wfinfo_lib::{
-    client::DiscordRestClient, http::Route, models::CreateApplicationCommand,
+    client::DiscordRestClient, http::create_global_application_command,
+    models::CreateApplicationCommand,
 };
 
 pub fn commands_service(config: &Config) -> impl HttpServiceFactory {
@@ -33,7 +35,7 @@ async fn handle_command(
 
     match command.into_inner() {
         AdminCommand::RegisterCommands => {
-            Route::create_global_application_command(
+            create_global_application_command(
                 client.as_ref(),
                 config.app_id,
                 CreateApplicationCommand {
@@ -44,6 +46,7 @@ async fn handle_command(
                 },
             )
             .await
+            .context("error creating global application command")
             .map_err(|cause| {
                 error!("{:?}", cause);
                 AdminCommandError::CommandFailed { cause }
