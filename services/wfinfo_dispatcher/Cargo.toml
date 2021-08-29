@@ -10,8 +10,8 @@ publish = false
 serde = "1"
 serde_json = "1"
 envy = "0.4"
-wfinfo_lib = { path = "../wfinfo_lib" }
-wfinfo_azure = { path = "../wfinfo_azure" }
+wfinfo_lib = { path = "../../lib/wfinfo_lib" }
+wfinfo_azure = { path = "../../lib/wfinfo_azure" }
 tokio = { version = "1", features = ["full"] }
 anyhow = "1"
 tracing = "0.1"

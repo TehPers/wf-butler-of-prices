@@ -1,0 +1,4 @@
+extend = "../Makefile.toml"
+
+[env]
+BINARY_NAME = "wfinfo_dispatcher"

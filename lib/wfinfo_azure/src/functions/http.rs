@@ -45,9 +45,9 @@ impl<'de, T: 'static + for<'d> Deserialize<'d>> Deserialize<'de>
 }
 
 #[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "PascalCase")]
 pub struct RawHttpOutput {
     pub status: u16,
-    #[serde(skip)]
     pub headers: HashMap<String, String>,
     pub body: String,
 }

@@ -15,7 +15,7 @@ use wfinfo_azure::functions::{
     FunctionsInput, FunctionsOutput, HttpOutput, RawHttpInput,
 };
 use wfinfo_lib::models::{
-    Interaction, InteractionApplicationCommandCallbackData,
+    AllowedMentions, Interaction, InteractionApplicationCommandCallbackData,
     InteractionResponse, InteractionResponseDataFlags, InteractionType,
 };
 
@@ -37,7 +37,7 @@ async fn handle_interaction(
     >,
     InteractionError,
 > {
-    // Signature validation
+    // Validate signature
     if !config.ignore_signature {
         let timestamp = input
             .data
@@ -72,7 +72,7 @@ async fn handle_interaction(
             .map_err(|_| CheckSignatureError::VerificationFailed)?;
     }
 
-    // TODO
+    // Verify application ID
     let interaction: Interaction =
         serde_json::from_str(&input.data.request.body)
             .map_err(|err| InteractionError::InvalidBody(err))?;
@@ -80,6 +80,7 @@ async fn handle_interaction(
         return Err(InteractionError::UnauthorizedApplication);
     }
 
+    // Create HTTP response
     let response = match &interaction.kind {
         InteractionType::Ping => InteractionResponse::Pong,
         InteractionType::ApplicationCommand { .. } => {
@@ -100,15 +101,23 @@ async fn handle_interaction(
         }
     };
 
-    Ok(Json(FunctionsOutput {
+    // Enqueue message and return HTTP response
+    let response = FunctionsOutput {
         outputs: InteractionOutputData {
             message: vec![input.data.request.body.clone()],
         },
         logs: vec![],
         return_value: HttpOutput {
             status_code: StatusCode::OK.as_u16(),
-            headers: HashMap::new(),
+            headers: {
+                let mut headers = HashMap::new();
+                headers
+                    .insert("content-type".into(), "application/json".into());
+                headers
+            },
             body: response,
         },
-    }))
+    };
+
+    Ok(Json(response))
 }
