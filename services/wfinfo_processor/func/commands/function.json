@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json.schemastore.org/function",
+  "bindings": [
+    {
+      "authLevel": "anonymous",
+      "type": "httpTrigger",
+      "direction": "in",
+      "name": "request",
+      "methods": ["post"]
+    }
+  ]
+}

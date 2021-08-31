@@ -2,7 +2,7 @@ use derive_more::{Deref, DerefMut, From, Into};
 use ed25519_dalek::PublicKey;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::borrow::Cow;
-use wfinfo_lib::models::Snowflake;
+use wfinfo_discord::models::Snowflake;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Config {

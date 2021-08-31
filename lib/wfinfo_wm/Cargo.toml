@@ -1,0 +1,21 @@
+cargo-features = ["edition2021"]
+
+[package]
+name = "wfinfo_wm"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1"
+async-trait = "0.1"
+wfinfo_lib = { path = "../wfinfo_lib" }
+reqwest-middleware = "0.1"
+truelayer-extensions = "0.1"
+http = "0.2"
+chrono = "0.4"
+derive_more = { version = "0.99", features = ["display", "error"] }
+tokio = { version = "1" }
+bytes = "1"
+tracing = "0.1"

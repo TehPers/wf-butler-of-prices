@@ -14,8 +14,8 @@ use tracing::instrument;
 use wfinfo_azure::functions::{
     FunctionsInput, FunctionsOutput, HttpOutput, RawHttpInput,
 };
-use wfinfo_lib::models::{
-    AllowedMentions, Interaction, InteractionApplicationCommandCallbackData,
+use wfinfo_discord::models::{
+    Interaction, InteractionApplicationCommandCallbackData,
     InteractionResponse, InteractionResponseDataFlags, InteractionType,
 };
 

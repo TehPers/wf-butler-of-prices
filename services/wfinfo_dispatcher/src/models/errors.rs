@@ -1,9 +1,8 @@
+use crate::models::InteractionOutputData;
 use actix_web::{http::StatusCode, HttpResponse, ResponseError};
 use derive_more::{Display, From};
 use std::{borrow::Cow, collections::HashMap};
 use wfinfo_azure::functions::{FunctionsOutput, RawHttpOutput};
-
-use super::InteractionOutputData;
 
 #[derive(Clone, Debug, Display)]
 pub enum CheckSignatureError {

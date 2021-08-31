@@ -9,12 +9,17 @@ serde = "1"
 serde_json = "1"
 envy = "0.4"
 wfinfo_lib = { path = "../../lib/wfinfo_lib" }
+wfinfo_azure = { path = "../../lib/wfinfo_azure" }
+wfinfo_discord = { path = "../../lib/wfinfo_discord" }
+wfinfo_wm = { path = "../../lib/wfinfo_wm" }
 tokio = { version = "1", features = ["full"] }
 anyhow = "1"
 tracing = "0.1"
 tracing-subscriber = "0.2"
 futures = "0.3"
 hex = "0.4"
+async-trait = "0.1"
+qp-trie = "0.7"
 
 [dependencies.actix-web]
 version = "4.0.0-beta.8"

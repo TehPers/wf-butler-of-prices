@@ -9,11 +9,19 @@ async fn main() -> anyhow::Result<()> {
     use tracing_subscriber::FmtSubscriber;
 
     // Setup tracing
-    FmtSubscriber::builder()
-        .compact()
-        .with_max_level(Level::DEBUG)
-        .try_init()
-        .expect("error registering tracing subscriber");
+    if cfg!(debug_assertions) {
+        FmtSubscriber::builder()
+            .compact()
+            .with_max_level(Level::DEBUG)
+            .try_init()
+            .expect("error registering tracing subscriber");
+    } else {
+        FmtSubscriber::builder()
+            .json()
+            .with_max_level(Level::INFO)
+            .try_init()
+            .expect("error registering tracing subscriber");
+    };
 
     // Run application
     if let Err(error) = startup::start().await {

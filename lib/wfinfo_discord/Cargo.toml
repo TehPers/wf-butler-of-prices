@@ -1,0 +1,21 @@
+cargo-features = ["edition2021"]
+
+[package]
+name = "wfinfo_discord"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+wfinfo_lib = { path = "../wfinfo_lib" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1"
+tracing = "0.1"
+tokio = { version = "1", features = ["time"] }
+chrono = { version = "0.4", features = ["serde"] }
+bitflags = "1"
+reqwest-middleware = "0.1"
+truelayer-extensions = "0.1"
+async-trait = "0.1"
+derive_more = { version = "0.99", features = ["display", "error"] }
+http = "0.2"

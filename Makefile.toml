@@ -1,2 +1,43 @@
-[config]
-default_to_workspace = false
+env_files = [".env"]
+
+[tasks.build]
+args = ["build"]
+
+[tasks.test]
+args = ["test"]
+
+[tasks.run]
+category = "Run"
+workspace = false
+command = "cargo"
+args = ["make", "--cwd=./services/${@}", "run-service"]
+
+[tasks.publish-flow]
+dependencies = [
+    "wait",
+    "publish-build-flow",
+    "pre-publish",
+    "publish",
+    "post-publish"
+]
+
+[tasks.publish-build-flow]
+category = "Publish"
+dependencies = ["pre-publish-build", "publish-build", "post-publish-build"]
+
+[tasks.pre-publish-build]
+category = "Publish"
+
+[tasks.publish-build]
+category = "Publish"
+description = "Builds the application"
+dependencies = ["pre-publish-build"]
+
+[tasks.post-publish-build]
+category = "Publish"
+dependencies = ["publish-build"]
+
+[tasks.publish]
+clear = true
+category = "Publish"
+dependencies = ["pre-publish"]

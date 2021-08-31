@@ -1,4 +1,4 @@
-extend = "../Makefile.toml"
+extend = "../../Makefile-services.toml"
 
 [env]
-BINARY_NAME = "wfinfo"
+BINARY_NAME = "wfinfo_dispatcher"
