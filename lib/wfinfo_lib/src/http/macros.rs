@@ -27,13 +27,14 @@ macro_rules! routes {
     (@info_type) => {
         ()
     };
-    (
+    {
         $(
             (
                 $name:ident {
                     $($url_param:ident : $url_param_type:ty),*
                     $(,)?
                 }
+                $(, generics = [$($generics:tt)*])?
                 $(, body = $([$body_type:ident])? $body_param:ident : $body_param_type:ty)?
                 $(, extra = {
                     $($extra_field:ident : $extra_field_type:ty),*
@@ -48,16 +49,16 @@ macro_rules! routes {
             )
         ),*
         $(,)?
-    ) => {
+    } => {
         $(
             #[derive(Clone, Debug)]
-            pub struct $name {
+            pub struct $name $(<$($generics)*>)? {
                 $(pub $url_param: $url_param_type,)*
                 $(pub $body_param: $body_param_type,)?
                 $($(pub $extra_field: $extra_field_type,)*)?
             }
 
-            impl ::std::fmt::Display for $name {
+            impl $(<$($generics)*>)? ::std::fmt::Display for $name $(<$($generics)*>)? {
                 fn fmt(
                     &self,
                     f: &mut ::std::fmt::Formatter<'_>
@@ -68,7 +69,7 @@ macro_rules! routes {
                 }
             }
 
-            impl $crate::http::Route for $name {
+            impl $(<$($generics)*>)? $crate::http::Route for $name $(<$($generics)*>)? {
                 type Info = $crate::routes!(@info_type $($info_type)?);
 
                 #[inline]
@@ -129,7 +130,7 @@ macro_rules! routes {
                 }
             }
 
-            impl $name {
+            impl $(<$($generics)*>)? $name $(<$($generics)*>)? {
                 pub async fn execute<C>(
                     client: &C
                     $(, $url_param: $url_param_type)*

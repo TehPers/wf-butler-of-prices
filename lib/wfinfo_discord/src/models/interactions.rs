@@ -58,52 +58,81 @@ pub struct SelectOption {
     pub default: Option<bool>,
 }
 
+serde_inner_enum! {
+    #[derive(Clone, Debug)]
+    pub enum ApplicationCommand = "type" {
+        ChatInput = 1 {
+            /// Unique id of the command.
+            id: Snowflake,
+            /// Unique id of the parent application.
+            application_id: Snowflake,
+            /// Guild id of the command, if not global.
+            [?] guild_id: Option<Snowflake>,
+            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
+            name: String,
+            /// 1-100 character description.
+            description: String,
+            /// The parameters for the command.
+            options: Vec<ApplicationCommandOption>,
+            /// Whether the command is enabled by default when the app is added to a
+            /// guild (default `true`).
+            [?] default_permission: Option<bool>,
+        },
+        User = 2 {
+            /// Unique id of the command.
+            id: Snowflake,
+            /// Unique id of the parent application.
+            application_id: Snowflake,
+            /// Guild id of the command, if not global.
+            [?] guild_id: Option<Snowflake>,
+            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
+            name: String,
+            /// 1-100 character description.
+            description: String,
+            /// Whether the command is enabled by default when the app is added to a
+            /// guild (default `true`).
+            [?] default_permission: Option<bool>,
+        },
+        Message = 3 {
+            /// Unique id of the command.
+            id: Snowflake,
+            /// Unique id of the parent application.
+            application_id: Snowflake,
+            /// Guild id of the command, if not global.
+            [?] guild_id: Option<Snowflake>,
+            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
+            name: String,
+            /// 1-100 character description.
+            description: String,
+            /// Whether the command is enabled by default when the app is added to a
+            /// guild (default `true`).
+            [?] default_permission: Option<bool>,
+        },
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ApplicationCommand {
-    /// Unique id of the command.
-    pub id: Snowflake,
-    /// Unique id of the parent application.
-    pub application_id: Snowflake,
-    /// Guild id of the command, if not global.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub guild_id: Option<Snowflake>,
+pub struct ApplicationCommandOption {
     /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
     pub name: String,
     /// 1-100 character description.
     pub description: String,
-    /// The parameters for the command.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub options: Option<Vec<ApplicationCommandOption>>,
-    /// Whether the command is enabled by default when the app is added to a
-    /// guild (default `true`).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub default_permission: Option<bool>,
+    #[serde(flatten)]
+    pub kind: ApplicationCommandOptionType,
 }
 
 serde_inner_enum! {
     #[derive(Clone, Debug)]
-    pub enum ApplicationCommandOption = "type" {
+    pub enum ApplicationCommandOptionType = "type" {
         SubCommand = 1 {
-            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-            name: String,
-            /// 1-100 character description.
-            description: String,
             /// Nested options.
             [?] options: Option<Vec<ApplicationCommandOption>>,
         },
         SubCommandGroup = 2 {
-            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-            name: String,
-            /// 1-100 character description.
-            description: String,
             /// Nested options.
             [?] options: Option<Vec<ApplicationCommandOption>>,
         },
         String = 3 {
-            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-            name: String,
-            /// 1-100 character description.
-            description: String,
             /// If the parameter is required or optional (default `false`).
             [?] required: Option<bool>,
             /// Choices for the user to pick from.
@@ -111,63 +140,35 @@ serde_inner_enum! {
         },
         /// Any integer between -2^53 and 2^53.
         Integer = 4 {
-            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-            name: String,
-            /// 1-100 character description.
-            description: String,
             /// If the parameter is required or optional (default `false`).
             [?] required: Option<bool>,
             /// Choices for the user to pick from.
             [?] choices: Option<Vec<ApplicationCommandOptionChoice<i64>>>,
         },
         Boolean = 5 {
-            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-            name: String,
-            /// 1-100 character description.
-            description: String,
             /// If the parameter is required or optional (default `false`).
             [?] required: Option<bool>,
         },
         User = 6 {
-            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-            name: String,
-            /// 1-100 character description.
-            description: String,
             /// If the parameter is required or optional (default `false`).
             [?] required: Option<bool>,
         },
         /// Includes all channel types + categories.
         Channel = 7 {
-            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-            name: String,
-            /// 1-100 character description.
-            description: String,
             /// If the parameter is required or optional (default `false`).
             [?] required: Option<bool>,
         },
         Role = 8 {
-            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-            name: String,
-            /// 1-100 character description.
-            description: String,
             /// If the parameter is required or optional (default `false`).
             [?] required: Option<bool>,
         },
         /// Includes users and roles.
         Mentionable = 9 {
-            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-            name: String,
-            /// 1-100 character description.
-            description: String,
             /// If the parameter is required or optional (default `false`).
             [?] required: Option<bool>,
         },
         /// Any double between -2^53 and 2^53
         Number = 10 {
-            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-            name: String,
-            /// 1-100 character description.
-            description: String,
             /// If the parameter is required or optional (default `false`).
             [?] required: Option<bool>,
             /// Choices for the user to pick from.
@@ -225,12 +226,12 @@ pub struct Interaction {
     pub id: Snowflake,
     /// Id of the application this interaction is for.
     pub application_id: Snowflake,
+    #[serde(flatten)]
+    pub kind: InteractionType,
     /// A continuation token for responding to the interaction.
     pub token: String,
     /// Read-only property, always 1.
     pub version: u8,
-    #[serde(flatten)]
-    pub kind: InteractionType,
 }
 
 serde_inner_enum! {
@@ -260,46 +261,112 @@ serde_inner_enum! {
             [?] user: Option<User>,
             /// The message the component was attached to.
             message: Message,
+            /// The type of the component.
+            component_type: ComponentType,
         }
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ApplicationCommandInteractionData {
-    /// The ID of the invoked command.
-    pub id: Snowflake,
-    /// The name of the invoked command.
-    pub name: String,
-    /// For components, the type of the component.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[serde(flatten)]
-    pub component_type: Option<ComponentType>,
+serde_inner_enum! {
+    #[derive(Clone, Debug)]
+    pub enum ApplicationCommandInteractionData = "type" {
+        ChatInput = 1 {
+            /// The ID of the invoked command.
+            id: Snowflake,
+            /// The name of the invoked command.
+            name: String,
+            /// Converted users + roles + channels.
+            [?] resolved: Option<ApplicationCommandInteractionDataResolved>,
+            /// The params + values from the user.
+            [?] options: Option<Vec<ApplicationCommandInteractionDataOption>>,
+        },
+        User = 2 {
+            /// The ID of the invoked command.
+            id: Snowflake,
+            /// The name of the invoked command.
+            name: String,
+            /// ID the of user.
+            target_id: Snowflake,
+        },
+        Message = 3 {
+            /// The ID of the invoked command.
+            id: Snowflake,
+            /// The name of the invoked command.
+            name: String,
+            /// ID the of message.
+            target_id: Snowflake,
+        },
+    }
 }
 
 serde_inner_enum! {
     #[derive(Clone, Debug)]
-    pub enum ComponentType = "component_type" {
+    pub enum ComponentType = "type" {
         ActionRow = 1,
         Button = 2 {
             /// The `custom_id` of the component.
             custom_id: String,
             /// Converted users + roles + channels.
             [?] resolved: Option<ApplicationCommandInteractionDataResolved>,
-            // /// The params + values from the user.
-            // TODO [?] options: Option<Vec<ApplicationCommandInteractionDataOption>>,
+            /// The params + values from the user.
+            [?] options: Option<Vec<ApplicationCommandInteractionDataOption>>,
         },
         SelectMenu = 3 {
             /// The `custom_id` of the component.
             custom_id: String,
             /// Converted users + roles + channels.
             [?] resolved: Option<ApplicationCommandInteractionDataResolved>,
-            // /// The params + values from the user.
-            // TODO [?] options: Option<Vec<ApplicationCommandInteractionDataOption>>,
+            /// The params + values from the user.
+            [?] options: Option<Vec<ApplicationCommandInteractionDataOption>>,
         }
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ApplicationCommandInteractionDataOption {
+    /// The name of the parameter.
+    pub name: String,
+    #[serde(flatten)]
+    pub kind: ApplicationCommandInteractionDataOptionType,
+}
+
+serde_inner_enum! {
+    #[derive(Clone, Debug)]
+    pub enum ApplicationCommandInteractionDataOptionType = "type" {
+        SubCommand = 1 {
+            options: Vec<ApplicationCommandInteractionDataOption>,
+        },
+        SubCommandGroup = 2 {
+            options: Vec<ApplicationCommandInteractionDataOption>,
+        },
+        String = 3 {
+            value: String,
+        },
+        Integer = 4 {
+            value: i64,
+        },
+        Boolean = 5 {
+            value: bool,
+        },
+        User = 6 {
+            value: Snowflake,
+        },
+        Channel = 7 {
+            value: Snowflake,
+        },
+        Role = 8 {
+            value: Snowflake,
+        },
+        Mentionable = 9 {
+            value: Snowflake,
+        },
+        Number = 10 {
+            value: f64,
+        },
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ApplicationCommandInteractionDataResolved {
     /// The IDs and [User] objects.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -367,19 +434,35 @@ bitflags! {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct CreateApplicationCommand {
-    /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-    pub name: String,
-    /// 1-100 character description.
-    pub description: String,
-    /// The parameters for the command.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub options: Option<Vec<ApplicationCommandOption>>,
-    /// Whether the command is enabled by default when the app is added to a
-    /// guild (default `true`).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub default_permission: Option<bool>,
+serde_inner_enum! {
+    #[derive(Clone, Debug)]
+    pub enum CreateApplicationCommand = "type" {
+        ChatInput = 1 {
+            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
+            name: String,
+            /// 1-100 character description.
+            description: String,
+            /// The parameters for the command.
+            [?] options: Option<Vec<ApplicationCommandOption>>,
+            /// Whether the command is enabled by default when the app is added to a
+            /// guild (default `true`).
+            [?] default_permission: Option<bool>,
+        },
+        User = 2 {
+            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
+            name: String,
+            /// Whether the command is enabled by default when the app is added to a
+            /// guild (default `true`).
+            [?] default_permission: Option<bool>,
+        },
+        Message = 3 {
+            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
+            name: String,
+            /// Whether the command is enabled by default when the app is added to a
+            /// guild (default `true`).
+            [?] default_permission: Option<bool>,
+        },
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -2251,9 +2251,11 @@ dependencies = [
 name = "wfinfo_commands"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-recursion",
  "async-trait",
  "derive_more",
+ "tokio",
  "tracing",
  "wfinfo_discord",
  "wfinfo_lib",
@@ -2314,6 +2316,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "wfinfo_logic"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-recursion",
+ "async-trait",
+ "qp-trie",
+ "tokio",
+ "tracing",
+ "wfinfo_commands",
+ "wfinfo_discord",
+ "wfinfo_lib",
+ "wfinfo_wm",
+]
+
+[[package]]
 name = "wfinfo_processor"
 version = "0.1.0"
 dependencies = [
@@ -2325,15 +2343,16 @@ dependencies = [
  "envy",
  "futures",
  "hex",
- "qp-trie",
  "serde",
  "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",
  "wfinfo_azure",
+ "wfinfo_commands",
  "wfinfo_discord",
  "wfinfo_lib",
+ "wfinfo_logic",
  "wfinfo_wm",
 ]
 

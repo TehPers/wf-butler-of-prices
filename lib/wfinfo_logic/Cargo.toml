@@ -1,5 +1,5 @@
 [package]
-name = "wfinfo_commands"
+name = "wfinfo_logic"
 version = "0.1.0"
 authors = ["TehPers <tehperz@gmail.com>"]
 edition = "2021"
@@ -9,8 +9,10 @@ publish = false
 anyhow = "1"
 wfinfo_lib = { path = "../wfinfo_lib" }
 wfinfo_discord = { path = "../wfinfo_discord" }
+wfinfo_wm = { path = "../wfinfo_wm" }
+wfinfo_commands = { path = "../wfinfo_commands" }
 tracing = "0.1"
-derive_more = { version = "0.99", features = ["display", "error"] }
 async-recursion = "0.3"
 async-trait = "0.1"
+qp-trie = "0.7"
 tokio = "1"

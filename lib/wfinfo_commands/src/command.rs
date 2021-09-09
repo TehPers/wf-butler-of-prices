@@ -1,249 +1,479 @@
+use crate::{FromOption, FromOptionError};
+use async_recursion::async_recursion;
 use async_trait::async_trait;
-use std::fmt::{Debug, Formatter};
-use wfinfo_discord::models::{
-    ApplicationCommandInteractionData, CreateApplicationCommand,
+use derive_more::{Display, Error};
+use std::{
+    borrow::Cow,
+    fmt::{Debug, Formatter},
+    sync::Arc,
 };
+use wfinfo_discord::{
+    models::{
+        ApplicationCommand, ApplicationCommandInteractionDataOption,
+        ApplicationCommandInteractionDataOptionType,
+        ApplicationCommandInteractionDataResolved, ApplicationCommandOption,
+        ApplicationCommandOptionChoice, ApplicationCommandOptionType,
+        CreateApplicationCommand, GuildMember, Snowflake, User,
+    },
+    routes::CreateGlobalApplicationCommand,
+    DiscordRestClient,
+};
+use wfinfo_lib::http::RequestError;
 
-macro_rules! builder {
-    (@default_ty $_:ty) => {
-        ()
-    };
-    (@debug_field $fmt:expr, $self:expr, $field:ident,) => {
-        $fmt.field(stringify!($field), &$self.$field)
-    };
-    (@debug_field $fmt:expr, $self:expr, $field:ident, [hide]) => {
-        $fmt
-    };
-    (@debug_finish $fmt:expr,) => {
-        $fmt.finish()
-    };
-    (@debug_finish $fmt:expr, $($_:tt)*) => {
-        $fmt.finish_non_exhaustive()
-    };
-    {
-        $name:ident,
-        required = {
-            $($([$req_mod:tt])? $req_ty_name:ident = $req_field_name:ident : $req_field_ty:ty),*
-            $(,)?
-        },
-        optional = {
-            $($([$opt_mod:tt])? $opt_field_name:ident : $opt_field_ty:ty),*
-            $(,)?
-        },
-        extra = {
-            $(
-                $([$extra_mod:tt])?
-                $extra_field_name:ident : $extra_field_ty:ty
-                    = $extra_field_default:expr
-            ),*
-            $(,)?
-        },
-        build = |$builder:pat_param| -> $built_ty:ty $build:block
-        $(,)?
-    } => {
-        #[allow(non_camel_case_types)]
-        pub struct $name<$($req_ty_name = ()),*> {
-            $($req_field_name : $req_ty_name,)*
-            $($opt_field_name : Option<$opt_field_ty>,)*
-            $($extra_field_name : $extra_field_ty,)*
-        }
-
-        const _: () = {
-            macro_rules! helper {
-                (@ty set $ty_name:ident) => {
-                    $name<$(helper!(@ty_param set $ty_name, $req_ty_name)),*>
-                };
-                $(
-                    (@ty_param set $req_ty_name, $req_ty_name) => {
-                        $req_field_ty
-                    };
-                )*
-                (@ty_param set $_ty_name:ident, $fallback_name:ident) => {
-                    $fallback_name
-                };
-                $(
-                    (
-                        @field_value $self:expr,
-                        $req_field_name = $value:expr,
-                        $req_field_name
-                    ) => {
-                        $value
-                    };
-                )*
-                (
-                    @field_value $self:expr,
-                    $_field:ident = $_value:expr,
-                    $fallback_field:ident
-                ) => {
-                    $self.$fallback_field
-                };
-                (@value $self:expr, $field:ident = $value:expr) => {
-                    $name {
-                        $(
-                            $req_field_name: helper!(
-                                @field_value $self,
-                                $field = $value,
-                                $req_field_name
-                            ),
-                        )*
-                        $($opt_field_name: $self.$opt_field_name,)*
-                        $($extra_field_name: $self.$extra_field_name,)*
-                    }
-                };
-            }
-
-            impl $name<$(builder!(@default_ty $req_field_ty)),*> {
-                #[inline]
-                pub fn new() -> Self {
-                    Self {
-                        $($req_field_name: (),)*
-                        $($opt_field_name: None,)*
-                        $($extra_field_name: $extra_field_default,)*
-                    }
-                }
-            }
-
-            impl<$($req_ty_name),*> $name<$($req_ty_name),*> {
-                $(
-                    #[inline]
-                    pub fn $req_field_name(
-                        self,
-                        value: $req_field_ty
-                    ) -> helper!(@ty set $req_ty_name) {
-                        helper!(@value self, $req_field_name = value)
-                    }
-                )*
-
-                $(
-                    #[inline]
-                    pub fn $opt_field_name(
-                        mut self,
-                        value: $opt_field_ty
-                    ) -> Self {
-                        self.$opt_field_name = Some(value);
-                        self
-                    }
-                )*
-            }
-
-            impl $name<$($req_field_ty),*> {
-                #[inline]
-                fn build(self) -> $built_ty {
-                    let $builder = self;
-                    $build
-                }
-            }
-
-            impl<$($req_ty_name: Debug),*> Debug for $name<$($req_ty_name),*> {
-                #[allow(unused_mut)]
-                fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-                    let mut fmt = f.debug_struct(stringify!($name));
-                    $(let mut fmt = builder!(@debug_field fmt, self, $req_field_name, $([$req_mod])?);)*
-                    $(let mut fmt = builder!(@debug_field fmt, self, $opt_field_name, $([$opt_mod])?);)*
-                    $(let mut fmt = builder!(@debug_field fmt, self, $extra_field_name, $([$extra_mod])?);)*
-                    builder!(
-                        @debug_finish fmt,
-                        $($($req_mod)?)*
-                        $($($opt_mod)?)*
-                        $($($extra_mod)?)*
-                    )
-                }
-            }
-        };
-    };
-}
-
-pub struct Command {
-    pub name: String,
-    pub description: String,
+pub struct SlashCommand {
+    pub name: Cow<'static, str>,
+    pub description: Cow<'static, str>,
     pub options: Vec<CommandOption>,
     pub default_permission: Option<bool>,
     pub callback: Option<Box<dyn CommandCallback>>,
 }
 
-impl From<&Command> for CreateApplicationCommand {
-    fn from(command: &Command) -> Self {
-        CreateApplicationCommand {
-            name: command.name.clone(),
-            description: command.description.clone(),
-            options: todo!(),
-            default_permission: command.default_permission,
+impl SlashCommand {
+    pub async fn register(
+        &self,
+        client: &DiscordRestClient,
+        application_id: Snowflake,
+    ) -> Result<ApplicationCommand, RequestError> {
+        CreateGlobalApplicationCommand::execute(
+            client,
+            application_id,
+            self.into(),
+        )
+        .await
+    }
+
+    pub async fn handle(
+        &self,
+        interaction_data: Arc<InteractionData>,
+        root_data: SlashCommandData,
+    ) -> Result<(), HandleInteractionError> {
+        if root_data.name != self.name {
+            return Err(HandleInteractionError::UnknownCommand(
+                root_data.name.clone(),
+            ));
         }
+
+        // Callback
+        if let Some(callback) = self.callback.as_ref() {
+            let option_registry =
+                CommandOptionRegistry::new(&root_data.options);
+            callback
+                .invoke(interaction_data.clone(), &root_data, option_registry)
+                .await?;
+        }
+
+        // Options
+        for invoke_option in root_data.options.iter() {
+            self.options
+                .iter()
+                .find(|option| option.name == invoke_option.name)
+                .ok_or_else(|| {
+                    HandleInteractionError::UnknownOption(
+                        invoke_option.name.clone(),
+                    )
+                })?
+                .handle(interaction_data.clone(), &root_data, &invoke_option)
+                .await?;
+        }
+
+        Ok(())
     }
 }
 
 #[async_trait]
 pub trait CommandCallback: Send + Sync + 'static {
-    fn invoke(&self, args: ApplicationCommandInteractionData);
+    async fn invoke<'a>(
+        &self,
+        interaction_data: Arc<InteractionData>,
+        invoke_data: &'a SlashCommandData,
+        options: CommandOptionRegistry<'a>,
+    ) -> Result<(), HandleInteractionError>;
 }
 
-// TODO
-type CommandOption = ();
+#[async_trait]
+impl<F> CommandCallback for F
+where
+    F: Send + Sync + 'static,
+    F: for<'a> Fn(
+        Arc<InteractionData>,
+        &'a SlashCommandData,
+        CommandOptionRegistry<'a>,
+    ) -> Result<(), HandleInteractionError>,
+{
+    async fn invoke<'a>(
+        &self,
+        interaction_data: Arc<InteractionData>,
+        invoke_data: &'a SlashCommandData,
+        options: CommandOptionRegistry<'a>,
+    ) -> Result<(), HandleInteractionError> {
+        (self)(interaction_data, invoke_data, options)
+    }
+}
 
-builder! {
-    CommandBuilder,
-    required = {
-        Name = name: String,
-        Desc = description: String,
-    },
-    optional = {
-        default_permission: bool,
-    },
-    extra = {
-        options: Vec<CommandOption> = Vec::new(),
-        [hide] callback: Option<Box<dyn CommandCallback>> = None,
-    },
-    build = |builder| -> Command {
-        Command {
-            name: builder.name,
-            description: builder.description,
-            options: builder.options,
-            default_permission: builder.default_permission,
-            callback: builder.callback,
+#[derive(Clone, Debug)]
+pub struct InteractionData {
+    pub id: Snowflake,
+    pub application_id: Snowflake,
+    pub token: String,
+    pub guild_id: Option<Snowflake>,
+    pub channel_id: Snowflake,
+    pub member: Option<GuildMember>,
+    pub user: Option<User>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SlashCommandData {
+    pub command_id: Snowflake,
+    pub name: String,
+    pub resolved: ApplicationCommandInteractionDataResolved,
+    pub options: Vec<ApplicationCommandInteractionDataOption>,
+}
+
+#[non_exhaustive]
+#[derive(Debug, Display, Error)]
+pub enum HandleInteractionError {
+    #[display(fmt = "unknown command '{}'", _0)]
+    UnknownCommand(#[error(ignore)] String),
+    #[display(fmt = "unknown option: '{}'", _0)]
+    UnknownOption(#[error(ignore)] String),
+    #[display(fmt = "{}", _0)]
+    OptionError(GetOptionError),
+    #[display(fmt = "invalid options: '{}'", _0)]
+    InvalidData(#[error(ignore)] String),
+    #[display(fmt = "{}", _0)]
+    Custom(#[error(ignore)] anyhow::Error),
+}
+
+impl From<anyhow::Error> for HandleInteractionError {
+    fn from(error: anyhow::Error) -> Self {
+        HandleInteractionError::Custom(error)
+    }
+}
+
+impl From<GetOptionError> for HandleInteractionError {
+    fn from(error: GetOptionError) -> Self {
+        HandleInteractionError::OptionError(error)
+    }
+}
+
+impl From<&SlashCommand> for CreateApplicationCommand {
+    fn from(command: &SlashCommand) -> Self {
+        CreateApplicationCommand::ChatInput {
+            name: command.name.to_string(),
+            description: command.description.to_string(),
+            options: if command.options.is_empty() {
+                None
+            } else {
+                Some(command.options.iter().map(Into::into).collect())
+            },
+            default_permission: command.default_permission,
         }
     }
 }
 
-impl CommandBuilder {
-    #[inline]
-    pub fn option<F: FnOnce(OptionBuilder) -> OptionBuilder<String, String>>(
-        mut self,
-        builder: F,
-    ) -> Self {
-        let builder = builder(OptionBuilder::new());
-        self.options.push(builder.build());
-        self
-    }
+#[derive(Debug)]
+pub struct CommandOption {
+    pub name: Cow<'static, str>,
+    pub description: Cow<'static, str>,
+    pub kind: CommandOptionType,
+}
 
-    #[inline]
-    pub fn callback<C: CommandCallback>(self, callback: C) -> Self {
-        self.callback_boxed(Box::new(callback))
-    }
+pub enum CommandOptionType {
+    SubCommand {
+        options: Vec<CommandOption>,
+        callback: Option<Box<dyn CommandCallback>>,
+    },
+    SubCommandGroup {
+        options: Vec<CommandOption>,
+    },
+    String {
+        required: Option<bool>,
+        choices: Option<Vec<Choice<Cow<'static, str>>>>,
+    },
+    Integer {
+        required: Option<bool>,
+        choices: Option<Vec<Choice<i64>>>,
+    },
+    Number {
+        required: Option<bool>,
+        choices: Option<Vec<Choice<f64>>>,
+    },
+    Boolean {
+        required: Option<bool>,
+    },
+    User {
+        required: Option<bool>,
+    },
+    Channel {
+        required: Option<bool>,
+    },
+    Role {
+        required: Option<bool>,
+    },
+    Mentionable {
+        required: Option<bool>,
+    },
+}
 
-    #[inline]
-    pub fn callback_boxed(
-        mut self,
-        callback: Box<dyn CommandCallback>,
-    ) -> Self {
-        self.callback = Some(callback);
-        self
+impl CommandOption {
+    #[async_recursion]
+    pub async fn handle(
+        &self,
+        interaction_data: Arc<InteractionData>,
+        root_data: &SlashCommandData,
+        command_data: &ApplicationCommandInteractionDataOption,
+    ) -> Result<(), HandleInteractionError> {
+        match &self.kind {
+            CommandOptionType::SubCommand {
+                options,
+                callback: Some(ref callback),
+            } => match &command_data.kind {
+                ApplicationCommandInteractionDataOptionType::SubCommand {
+                    options: invoke_options,
+                } => {
+                    // Options
+                    for invoke_option in root_data.options.iter() {
+                        options
+                            .iter()
+                            .find(|option| option.name == invoke_option.name)
+                            .ok_or_else(|| {
+                                HandleInteractionError::UnknownOption(
+                                    invoke_option.name.clone(),
+                                )
+                            })?
+                            .handle(
+                                interaction_data.clone(),
+                                &root_data,
+                                &invoke_option,
+                            )
+                            .await?;
+                    }
+
+                    // Callback
+                    callback
+                        .invoke(
+                            interaction_data.clone(),
+                            root_data,
+                            CommandOptionRegistry::new(invoke_options),
+                        )
+                        .await
+                }
+                _ => Err(HandleInteractionError::InvalidData(
+                    self.name.to_string(),
+                )),
+            },
+            CommandOptionType::SubCommandGroup { options } => {
+                // Options
+                for invoke_option in root_data.options.iter() {
+                    options
+                        .iter()
+                        .find(|option| option.name == invoke_option.name)
+                        .ok_or_else(|| {
+                            HandleInteractionError::UnknownOption(
+                                invoke_option.name.clone(),
+                            )
+                        })?
+                        .handle(
+                            interaction_data.clone(),
+                            &root_data,
+                            &invoke_option,
+                        )
+                        .await?;
+                }
+
+                Ok(())
+            }
+            _ => Ok(()),
+        }
     }
 }
 
-builder! {
-    OptionBuilder,
-    required = {
-        Name = name: String,
-        Desc = description: String,
-    },
-    optional = {
-        required: bool,
-    },
-    extra = {
-        choices: Vec<()> = Vec::new(),
-        options: Vec<CommandOption> = Vec::new(),
-    },
-    build = |_builder| -> CommandOption {
-        todo!()
-    },
+impl From<&CommandOption> for ApplicationCommandOption {
+    fn from(option: &CommandOption) -> Self {
+        let kind = match &option.kind {
+            CommandOptionType::SubCommand { options, .. } => {
+                ApplicationCommandOptionType::SubCommand {
+                    options: if options.is_empty() {
+                        None
+                    } else {
+                        Some(options.iter().map(Into::into).collect())
+                    },
+                }
+            }
+            CommandOptionType::SubCommandGroup { options, .. } => {
+                ApplicationCommandOptionType::SubCommandGroup {
+                    options: if options.is_empty() {
+                        None
+                    } else {
+                        Some(options.iter().map(Into::into).collect())
+                    },
+                }
+            }
+            CommandOptionType::String { required, choices } => {
+                ApplicationCommandOptionType::String {
+                    required: *required,
+                    choices: choices.as_ref().map(|choices| {
+                        choices.iter().map(Into::into).collect()
+                    }),
+                }
+            }
+            CommandOptionType::Integer { required, choices } => {
+                ApplicationCommandOptionType::Integer {
+                    required: *required,
+                    choices: choices.as_ref().map(|choices| {
+                        choices.iter().map(Into::into).collect()
+                    }),
+                }
+            }
+            CommandOptionType::Number { required, choices } => {
+                ApplicationCommandOptionType::Number {
+                    required: *required,
+                    choices: choices.as_ref().map(|choices| {
+                        choices.iter().map(Into::into).collect()
+                    }),
+                }
+            }
+            CommandOptionType::Boolean { required } => {
+                ApplicationCommandOptionType::Boolean {
+                    required: *required,
+                }
+            }
+            CommandOptionType::User { required } => {
+                ApplicationCommandOptionType::User {
+                    required: *required,
+                }
+            }
+            CommandOptionType::Channel { required } => {
+                ApplicationCommandOptionType::Channel {
+                    required: *required,
+                }
+            }
+            CommandOptionType::Role { required } => {
+                ApplicationCommandOptionType::Role {
+                    required: *required,
+                }
+            }
+            CommandOptionType::Mentionable { required } => {
+                ApplicationCommandOptionType::Mentionable {
+                    required: *required,
+                }
+            }
+        };
+
+        ApplicationCommandOption {
+            name: option.name.to_string(),
+            description: option.description.to_string(),
+            kind,
+        }
+    }
+}
+
+impl Debug for CommandOptionType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CommandOptionType::SubCommand {
+                options,
+                callback: _,
+            } => f
+                .debug_struct("SubCommand")
+                .field("options", options)
+                .finish_non_exhaustive(),
+            CommandOptionType::SubCommandGroup { options } => f
+                .debug_struct("SubCommandGroup")
+                .field("options", options)
+                .finish(),
+            CommandOptionType::String { required, choices } => f
+                .debug_struct("String")
+                .field("required", required)
+                .field("choices", choices)
+                .finish(),
+            CommandOptionType::Integer { required, choices } => f
+                .debug_struct("Integer")
+                .field("required", required)
+                .field("choices", choices)
+                .finish(),
+            CommandOptionType::Number { required, choices } => f
+                .debug_struct("Number")
+                .field("required", required)
+                .field("choices", choices)
+                .finish(),
+            CommandOptionType::Boolean { required } => f
+                .debug_struct("Boolean")
+                .field("required", required)
+                .finish(),
+            CommandOptionType::User { required } => {
+                f.debug_struct("User").field("required", required).finish()
+            }
+            CommandOptionType::Channel { required } => f
+                .debug_struct("Channel")
+                .field("required", required)
+                .finish(),
+            CommandOptionType::Role { required } => {
+                f.debug_struct("Role").field("required", required).finish()
+            }
+            CommandOptionType::Mentionable { required } => f
+                .debug_struct("Mentionable")
+                .field("required", required)
+                .finish(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Choice<T> {
+    pub name: Cow<'static, str>,
+    pub value: T,
+}
+
+impl<S: Clone + Into<T>, T> From<&Choice<S>>
+    for ApplicationCommandOptionChoice<T>
+{
+    fn from(choice: &Choice<S>) -> Self {
+        ApplicationCommandOptionChoice {
+            name: choice.name.to_string(),
+            value: choice.value.clone().into(),
+        }
+    }
+}
+
+pub struct CommandOptionRegistry<'a> {
+    options: &'a [ApplicationCommandInteractionDataOption],
+}
+
+impl<'a> CommandOptionRegistry<'a> {
+    pub fn new(options: &'a [ApplicationCommandInteractionDataOption]) -> Self {
+        CommandOptionRegistry { options }
+    }
+
+    pub fn get_raw_option(
+        &self,
+        name: &str,
+    ) -> Option<&ApplicationCommandInteractionDataOption> {
+        self.options.iter().find(|option| option.name == name)
+    }
+
+    pub fn get_option<T: FromOption<'a>>(
+        &self,
+        name: &str,
+    ) -> Result<T, GetOptionError> {
+        self.options
+            .iter()
+            .find(|option| option.name == name)
+            .ok_or(GetOptionError::MissingOption)
+            .and_then(|option| {
+                T::from_option(option)
+                    .map_err(GetOptionError::InvalidOptionValue)
+            })
+    }
+}
+
+#[derive(Debug, Display, Error)]
+#[non_exhaustive]
+pub enum GetOptionError {
+    #[display(fmt = "option not found")]
+    MissingOption,
+    #[display(fmt = "invalid option")]
+    InvalidOptionValue(FromOptionError),
+    #[display(fmt = "{}", _0)]
+    Custom(#[error(ignore)] anyhow::Error),
 }

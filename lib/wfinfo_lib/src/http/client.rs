@@ -6,7 +6,11 @@ use async_trait::async_trait;
 use derive_more::{Display, Error};
 use reqwest::{Client, Response};
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware, Middleware};
-use std::{borrow::Cow, fmt::Debug, sync::Arc};
+use std::{
+    borrow::Cow,
+    fmt::{Debug, Formatter},
+    sync::Arc,
+};
 use truelayer_extensions::Extensions;
 
 #[async_trait]
@@ -103,7 +107,7 @@ impl<I> RestClient<I> for StandardRestClient {
 }
 
 impl Debug for StandardRestClient {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RestClient")
             .field("raw_client", &self.raw_client)
             .field("base_url", &self.base_url)

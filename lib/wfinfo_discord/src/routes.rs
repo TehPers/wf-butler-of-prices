@@ -9,7 +9,11 @@ use crate::{
     },
     rate_limit::RateLimitBucket,
 };
-use std::sync::Arc;
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    sync::Arc,
+};
 use wfinfo_lib::{reqwest::Method, routes};
 
 #[derive(Clone, Debug)]
@@ -40,6 +44,12 @@ impl DiscordRouteInfo {
             bucket: RateLimitBucket::new(method, route, major_params),
         }
     }
+}
+
+fn hash_str(s: &str) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    s.hash(&mut hasher);
+    hasher.finish()
 }
 
 routes! {
@@ -194,7 +204,7 @@ routes! {
     (
         BulkOverwriteGlobalApplicationCommands { application_id: Snowflake },
         body = commands: Vec<CreateApplicationCommand>,
-        method = PUT "/application/{application_id}/commands",
+        method = PUT "/applications/{application_id}/commands",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
                 method,
@@ -287,7 +297,7 @@ routes! {
             DiscordRouteInfo::with_auth(
                 method,
                 route,
-                [0, 0],
+                [application_id.to_u64(), hash_str(interaction_token)],
             )
         },
         helper = Message,
@@ -300,7 +310,7 @@ routes! {
             DiscordRouteInfo::with_auth(
                 method,
                 route,
-                [0, 0],
+                [application_id.to_u64(), hash_str(interaction_token)],
             )
         },
         helper = Message,
@@ -312,7 +322,7 @@ routes! {
             DiscordRouteInfo::with_auth(
                 method,
                 route,
-                [0, 0],
+                [application_id.to_u64(), hash_str(interaction_token)],
             )
         },
         helper = (),
@@ -325,7 +335,7 @@ routes! {
             DiscordRouteInfo::with_auth(
                 method,
                 route,
-                [0, 0],
+                [application_id.to_u64(), hash_str(interaction_token)],
             )
         },
         helper = Message,
@@ -337,7 +347,7 @@ routes! {
             DiscordRouteInfo::with_auth(
                 method,
                 route,
-                [0, 0],
+                [application_id.to_u64(), hash_str(interaction_token)],
             )
         },
         helper = Message,
@@ -349,7 +359,7 @@ routes! {
             DiscordRouteInfo::with_auth(
                 method,
                 route,
-                [0, 0],
+                [application_id.to_u64(), hash_str(interaction_token)],
             )
         },
         helper = Message,
@@ -361,7 +371,7 @@ routes! {
             DiscordRouteInfo::with_auth(
                 method,
                 route,
-                [0, 0],
+                [application_id.to_u64(), hash_str(interaction_token)],
             )
         },
         helper = (),

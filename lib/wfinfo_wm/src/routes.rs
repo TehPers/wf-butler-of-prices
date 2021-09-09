@@ -1,5 +1,6 @@
 use crate::models::{
-    ItemPayload, ItemShort, ItemsPayload, PayloadResponse, Platform,
+    ItemOrdersPayload, ItemPayload, ItemShort, ItemsPayload, PayloadResponse,
+    Platform,
 };
 use chrono::Duration;
 use http::HeaderValue;
@@ -60,7 +61,8 @@ routes! {
         helper = PayloadResponse<ItemsPayload<ItemShort>>,
     ),
     (
-        GetItem { url_name: String },
+        GetItem { url_name: &'s str },
+        generics = ['s],
         extra = { platform: Platform },
         method = GET "/items/{url_name}",
         info = |method, route| -> RouteInfo {
@@ -68,7 +70,7 @@ routes! {
                 CacheBucket {
                     method,
                     route,
-                    values: vec![url_name.clone()],
+                    values: vec![url_name.to_string()],
                 },
                 Some(Duration::seconds(DAY)),
             )
@@ -79,23 +81,34 @@ routes! {
                 HeaderValue::from_static(platform.name()),
             )
         },
-        helper = PayloadResponse<ItemPayload<()>>,
+        helper = PayloadResponse<ItemPayload>,
     ),
     (
-        GetItemOrders { url_name: String },
+        GetItemOrders { url_name: &'s str },
+        generics = ['s],
+        extra = { platform: Platform },
         method = GET "/items/{url_name}/orders",
         info = |method, route| -> RouteInfo {
             RouteInfo::new_cached(
                 CacheBucket {
                     method,
                     route,
-                    values: vec![url_name.clone()],
+                    values: vec![url_name.to_string()],
                 },
                 Some(Duration::seconds(HOUR)),
             )
         },
-        // TODO
-        helper = PayloadResponse<()>,
+        processor = |req| {
+            req
+                .query(&[("include", "item")])
+                .header("platform", HeaderValue::from_static(match platform {
+                    Platform::XBox => "xbox",
+                    Platform::PC => "pc",
+                    Platform::PS4 => "ps4",
+                    Platform::Switch => "switch",
+                }))
+        },
+        helper = PayloadResponse<ItemOrdersPayload, ItemPayload>,
     ),
     // Liches
     (

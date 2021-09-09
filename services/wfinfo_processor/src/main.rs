@@ -1,6 +1,7 @@
 mod controllers;
 mod middleware;
 mod models;
+mod services;
 mod startup;
 
 #[actix_web::main]

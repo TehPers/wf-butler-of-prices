@@ -9,6 +9,7 @@ use std::{sync::Arc, time::Duration};
 use tokio::sync::Mutex;
 use tracing::trace;
 
+#[derive(Clone, Debug)]
 pub struct JitterMiddleware<D: Distribution<u64> + Send + Sync + 'static> {
     dist: D,
     rng: Arc<Mutex<StdRng>>,

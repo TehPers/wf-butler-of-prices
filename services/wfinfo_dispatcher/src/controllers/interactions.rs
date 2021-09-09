@@ -81,12 +81,12 @@ async fn handle_interaction(
     }
 
     // Create HTTP response
+    // TODO: check if response should be ephemeral
     let response = match &interaction.kind {
         InteractionType::Ping => InteractionResponse::Pong,
         InteractionType::ApplicationCommand { .. } => {
             InteractionResponse::DeferredChannelMessageWithSource {
                 data: InteractionApplicationCommandCallbackData {
-                    flags: Some(InteractionResponseDataFlags::EPHEMERAL),
                     ..Default::default()
                 },
             }
@@ -94,7 +94,6 @@ async fn handle_interaction(
         InteractionType::MessageComponent { .. } => {
             InteractionResponse::DeferredChannelMessageWithSource {
                 data: InteractionApplicationCommandCallbackData {
-                    flags: Some(InteractionResponseDataFlags::EPHEMERAL),
                     ..Default::default()
                 },
             }

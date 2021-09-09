@@ -9,13 +9,16 @@ use std::sync::Arc;
 use truelayer_extensions::Extensions;
 use wfinfo_lib::{
     http::{
-        middleware::{BackoffMiddleware, JitterMiddleware, RetryMiddleware},
+        middleware::{
+            BackoffMiddleware, JitterMiddleware, RetryMiddleware,
+            ToErrorMiddleware,
+        },
         RequestError, RestClient, Route, StandardRestClient,
     },
     reqwest::{Client, Response},
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct DiscordRestClient {
     inner: StandardRestClient,
 }
@@ -28,6 +31,7 @@ impl DiscordRestClient {
         client_id: Snowflake,
         client_secret: Arc<String>,
     ) -> Self {
+        let to_error = ToErrorMiddleware::default();
         let retry = RetryMiddleware::default();
         let auth = AuthenticationMiddleware::new(
             raw_client.clone(),
@@ -38,7 +42,8 @@ impl DiscordRestClient {
         let backoff = BackoffMiddleware::default();
         let rate_limit = RateLimitMiddleware::default();
         let jitter = JitterMiddleware::default();
-        let middleware: [Arc<dyn Middleware>; 5] = [
+        let middleware: [Arc<dyn Middleware>; 6] = [
+            Arc::new(to_error),
             Arc::new(retry),
             Arc::new(auth),
             Arc::new(backoff),

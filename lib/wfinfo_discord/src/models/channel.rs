@@ -323,7 +323,7 @@ pub struct ThreadMember {
 #[serde(transparent)]
 pub struct ThreadMemberFlags(pub u32);
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Embed {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
@@ -351,7 +351,7 @@ pub struct Embed {
     pub fields: Option<Vec<EmbedField>>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct EmbedThumbnail {
     /// Source url of thumbnail (only supports http(s) and attachments).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -529,58 +529,58 @@ impl AllowedMentionType {
 pub struct CreateWebhookMessage {
     /// The message contents (up to 2000 characters).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    content: Option<String>,
+    pub content: Option<String>,
     /// Override the default username of the webhook.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    username: Option<String>,
+    pub username: Option<String>,
     /// Override the default avatar of the webhook.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    avatar_url: Option<String>,
+    pub avatar_url: Option<String>,
     /// True if this is a TTS message.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    tts: Option<bool>,
+    pub tts: Option<bool>,
     // /// The contents of the file being sent.
     // #[serde(default, skip_serializing_if = "Option::is_none")]
     // TODO: file: Option<file contents>,
     /// Embedded rich content.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    embeds: Option<Vec<Embed>>,
+    pub embeds: Option<Vec<Embed>>,
     /// JSON encoded body of non-file params.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    payload_json: Option<String>,
+    pub payload_json: Option<String>,
     /// Allowed mentions for the message.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    allowed_mentions: Option<AllowedMentions>,
+    pub allowed_mentions: Option<AllowedMentions>,
     /// The components to include with the message.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    components: Option<Vec<Component>>,
+    pub components: Option<Vec<Component>>,
     /// For followup messages, can be set to
     /// [EPHEMERAL](MessageFlags::EPHEMERAL).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    flags: Option<MessageFlags>,
+    pub flags: Option<MessageFlags>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct EditWebhookMessage {
     /// The message contents (up to 2000 characters).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    content: Option<String>,
+    pub content: Option<String>,
     /// Embedded rich content.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    embeds: Option<Vec<Embed>>,
+    pub embeds: Option<Vec<Embed>>,
     // /// The contents of the file being sent/edited.
     // #[serde(default, skip_serializing_if = "Option::is_none")]
     // TODO: file: Option<file contents>,
     /// JSON encoded body of non-file params (multipart/form-data only).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    payload_json: Option<String>,
+    pub payload_json: Option<String>,
     /// Allowed mentions for the message.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    allowed_mentions: Option<AllowedMentions>,
+    pub allowed_mentions: Option<AllowedMentions>,
     /// Attached files to keep.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    attachments: Option<Vec<Attachment>>,
+    pub attachments: Option<Vec<Attachment>>,
     /// The components to include with the message.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    components: Option<Vec<Component>>,
+    pub components: Option<Vec<Component>>,
 }
