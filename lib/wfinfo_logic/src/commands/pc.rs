@@ -3,13 +3,13 @@ use anyhow::Context;
 use std::{fmt::Write, sync::Arc};
 use tracing::debug;
 use wfinfo_commands::{
-    create_callback, CommandBuilder, CommandOptionRegistry,
+    create_callback, Choice, CommandBuilder, CommandOptionRegistry,
     HandleInteractionError, InteractionData, SlashCommand,
 };
 use wfinfo_discord::{
     models::{
         AllowedMentions, CreateWebhookMessage, Embed, EmbedField,
-        EmbedThumbnail, MessageFlags, Snowflake,
+        EmbedThumbnail, Snowflake,
     },
     routes::CreateFollowupMessage,
     DiscordRestClient,
@@ -32,7 +32,7 @@ pub fn pc_command(
     item_service: WarframeItemService,
     app_id: Snowflake,
 ) -> SlashCommand {
-    let query_item_cb = create_callback! {
+    let query_item_callback = create_callback! {
         capture: {
             discord_client: DiscordRestClient = discord_client,
             wm_client: WarframeMarketRestClient = wm_client,
@@ -59,6 +59,7 @@ pub fn pc_command(
                         .required(true)
                         .build()
                 })
+                .callback(query_item_callback)
                 .build()
         })
         .subcommand_option(|builder| {
@@ -69,19 +70,17 @@ pub fn pc_command(
                         .description("The name of the mod to get the price of")
                         .required(true)
                         .build()
-                }).integer_option(|builder| {
+                })
+                .integer_option(|builder| {
                     builder.name("rank")
                         .description("The rank of the mod")
-                        .choices((0..=10).collect::<Vec<_>>())
+                        .choices((0..=10).map(|n| Choice {
+                            name: n.to_string().into(),
+                            value: n,
+                        }))
                         .required(false)
                         .build()
-                }).build()
-        })
-        .string_option(|builder| {
-            builder
-                .name("item")
-                .description("The item to get the price of")
-                .required(true)
+                })
                 .build()
         })
         .build()

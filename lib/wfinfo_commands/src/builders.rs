@@ -22,6 +22,18 @@ macro_rules! builder {
     (@debug_finish $fmt:expr, $($_:tt)*) => {
         $fmt.finish_non_exhaustive()
     };
+    (@arg_ty $_field_ty:ty, $arg_ty:ty) => {
+        $arg_ty
+    };
+    (@arg_ty $field_ty:ty,) => {
+        $field_ty
+    };
+    (@field_val $arg:expr, $arg_convert:expr) => {
+        $arg_convert
+    };
+    (@field_val $arg:expr,) => {
+        Into::into($arg)
+    };
     {
         $(#[$($attr:meta),*])*
         $name:ident,
@@ -33,7 +45,7 @@ macro_rules! builder {
             $(,)?
         },
         optional = {
-            $($([$opt_mod:tt])? $opt_field_name:ident : $opt_field_ty:ty),*
+            $($([$opt_mod:tt])? $opt_field_name:ident : $opt_field_ty:ty $(as $opt_field_arg_ty:ty = $opt_field_arg_convert:expr)?),*
             $(,)?
         },
         extra = {
@@ -128,9 +140,11 @@ macro_rules! builder {
                     #[inline]
                     pub fn $opt_field_name(
                         mut self,
-                        value: impl Into<$opt_field_ty>,
+                        $opt_field_name: builder!(@arg_ty $opt_field_ty, $($opt_field_arg_ty)?),
+                        // value: impl Into<$opt_field_ty>,
                     ) -> Self {
-                        self.$opt_field_name = Some(value.into());
+                        let value = builder!(@field_val $opt_field_name, $($opt_field_arg_convert)?);
+                        self.$opt_field_name = Some(value);
                         self
                     }
                 )*
@@ -403,7 +417,7 @@ builder! {
     },
     optional = {
         required: bool,
-        choices: Vec<Choice<Cow<'static, str>>>,
+        choices: Vec<Choice<Cow<'static, str>>> as impl IntoIterator<Item = Choice<Cow<'static, str>>> = choices.into_iter().collect(),
     },
     extra = {},
     ready = ReadyStringOptionBuilder,
@@ -427,7 +441,7 @@ builder! {
     },
     optional = {
         required: bool,
-        choices: Vec<Choice<i64>>,
+        choices: Vec<Choice<i64>> as impl IntoIterator<Item = Choice<i64>> = choices.into_iter().collect(),
     },
     extra = {},
     ready = ReadyIntegerOptionBuilder,
@@ -451,7 +465,7 @@ builder! {
     },
     optional = {
         required: bool,
-        choices: Vec<Choice<f64>>,
+        choices: Vec<Choice<f64>> as impl IntoIterator<Item = Choice<f64>> = choices.into_iter().collect(),
     },
     extra = {},
     ready = ReadyNumberOptionBuilder,
