@@ -1,4 +1,5 @@
 use crate::{
+    middleware::ClientSecret,
     models::{
         ApplicationCommand, BatchEditGuildApplicationCommandPermissions,
         Channel, ClientCredentials, ClientCredentialsRequest,
@@ -7,7 +8,7 @@ use crate::{
         EditWebhookMessage, GuildApplicationCommandPermissions,
         InteractionResponse, Message, Snowflake,
     },
-    rate_limit::RateLimitBucket, middleware::ClientSecret,
+    rate_limit::RateLimitBucket,
 };
 use reqwest::Method;
 use std::{
