@@ -49,6 +49,7 @@ jobs:
         profile: minimal
         toolchain: nightly
         components: rustfmt
+        override: true
     - name: Run formatter
       uses: actions-rs/cargo@v1
       with:
@@ -65,6 +66,7 @@ jobs:
         profile: minimal
         toolchain: stable
         components: clippy
+        override: true
     - name: Run clippy
       uses: actions-rs/cargo@v1
       with:
