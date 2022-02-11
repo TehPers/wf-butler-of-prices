@@ -1,0 +1,39 @@
+extend = "./Makefile.toml"
+
+[env]
+FUNC_BIN_DIR = "${CARGO_MAKE_WORKING_DIRECTORY}/func/bin"
+PUBLISH_CARGO_TARGET_DIR = "${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/publish"
+PUBLISH_BUILD_TARGET = "x86_64-unknown-linux-musl"
+
+[tasks.publish-build]
+env = { CARGO_TARGET_DIR = "${PUBLISH_CARGO_TARGET_DIR}" }
+command = "cargo"
+args = ["build", "--release", "--target", "${PUBLISH_BUILD_TARGET}"]
+
+[tasks.post-publish-build]
+dependencies = ["publish-build"]
+env = { OUT_PATH = "${PUBLISH_CARGO_TARGET_DIR}/${PUBLISH_BUILD_TARGET}/release/${BINARY_NAME}" }
+script = '''
+mkdir -p "$FUNC_BIN_DIR"
+cp "$OUT_PATH" "$FUNC_BIN_DIR/handler"
+'''
+
+[tasks.publish]
+script = '''
+cd func
+func azure functionapp publish "${FA_NAME}"
+'''
+
+[tasks.run-service]
+# dependencies = ["dev-test-flow"]
+dependencies = ["pre-build", "build", "post-build"]
+script = '''
+# Copy function handler
+OUT_PATH="${CARGO_MAKE_CRATE_TARGET_DIRECTORY}/debug/$BINARY_NAME"
+mkdir -p "$FUNC_BIN_DIR"
+cp "$OUT_PATH" "$FUNC_BIN_DIR/handler"
+
+# Start function app
+cd func
+func start --custom --port $PORT
+'''

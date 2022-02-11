@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json.schemastore.org/function",
+  "bindings": [
+    {
+      "name": "command",
+      "type": "serviceBusTrigger",
+      "direction": "in",
+      "queueName": "%INTERACTIONS_QUEUE%",
+      "connection": "SERVICE_BUS"
+    }
+  ]
+}

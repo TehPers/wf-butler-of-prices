@@ -1,0 +1,75 @@
+@port={{$dotenv PORT}}
+# @baseUrl=http://localhost:{{port}}/api
+@baseUrl = https://warframe-market-butler-dispatcher.azurewebsites.net/api
+
+### Ping
+POST {{baseUrl}}/interactions
+content-type: application/json
+
+{
+    "id": "1",
+    "application_id": "873144204317048833",
+    "token": "asdfghjkl",
+    "version": 1,
+    "type": 1
+}
+
+### Create interaction
+POST {{baseUrl}}/interactions
+content-type: application/json
+
+{
+    "id": "1",
+    "application_id": "873144204317048833",
+    "token": "asdfghjkl",
+    "version": 1,
+    "type": 2,
+    "channel_id": "1234",
+    "data": {
+        "id": "1",
+        "name": "test"
+    }
+}
+
+### Create interaction 2
+POST {{baseUrl}}/interactions
+content-type: application/json
+
+{
+    "application_id": "873144204317048833",
+    "channel_id": "385667561314058240",
+    "data": {
+        "id": "874575100534456340",
+        "name": "test",
+        "type": 1
+    },
+    "guild_id": "315983867951448076",
+    "id": "881364768185802792",
+    "member": {
+        "avatar": null,
+        "deaf": false,
+        "is_pending": false,
+        "joined_at": "2017-05-21T22:47:04.859000+00:00",
+        "mute": false,
+        "nick": null,
+        "pending": false,
+        "permissions": "549755813887",
+        "premium_since": null,
+        "roles": [
+            "319701045573844992",
+            "319700978855313410",
+            "770177748613333002",
+            "770177690962624532"
+        ],
+        "user": {
+            "avatar": "272215377163cb11f0eb57345fa142ce",
+            "discriminator": "5779",
+            "id": "247080708454088705",
+            "public_flags": 0,
+            "username": "TehPers"
+        }
+    },
+    "token": "aW50ZXJhY3Rpb246ODgxMzY0NzY4MTg1ODAyNzkyOnFJc1V0VklXM1Z2MnhTdG9vVXJieEF2Vk1HRjdwRXRGeHUwMUZuRzRkTWR0NHdUdVlWTG84WXpZNGZMY3lVZUhnRUpZYjBMcjZ3ODRxZDJ4U1dxNWRCbUxyMktYaElCT0NEZGI2MFJVc0E5QWpkWUMyb28wRnJsdjBkZElJbjc0",
+    "type": 2,
+    "version": 1
+}
