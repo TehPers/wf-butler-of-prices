@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
+use reqwest::{Method, Response};
 use tokio::time::sleep;
 use tracing::warn;
-use wfinfo_lib::reqwest::{Method, Response};
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct RateLimitBucket {

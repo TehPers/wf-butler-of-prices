@@ -1,61 +1,67 @@
-use crate::{middleware::CacheMiddleware, routes::RouteInfo};
+use crate::{
+    middleware::{CacheLayer, LocalCacheStorage},
+    routes::WmRouteInfo,
+};
 use async_trait::async_trait;
-use reqwest_middleware::Middleware;
-use std::sync::Arc;
-use truelayer_extensions::Extensions;
-use wfinfo_lib::{
-    http::{
-        middleware::{
-            BackoffMiddleware, JitterMiddleware, RetryMiddleware,
-            ToErrorMiddleware,
-        },
-        RequestError, RestClient, Route, StandardRestClient,
+use reqwest::{Client, RequestBuilder, Response};
+use serde::{de::DeserializeOwned, Serialize};
+use std::fmt::Debug;
+use tower::{util::BoxLayer, ServiceBuilder, ServiceExt};
+use wfinfo_http::{
+    middleware::{
+        BackoffLayer, ExecuteRequestService, JitterLayer, LimitLayer,
+        RestRequestBuilder, RetryLayer, RouteLayer,
+        TransientRequestRetryPolicy,
     },
-    reqwest::{Client, Response},
+    RequestError, RestClient, RestRequestLayer, Route,
 };
 
 #[derive(Clone, Debug)]
-pub struct WarframeMarketRestClient {
-    inner: StandardRestClient,
+pub struct WmRestClient {
+    cache_layer: CacheLayer<LocalCacheStorage>,
+    route_layer: RouteLayer,
+    request_layer: RestRequestLayer,
 }
 
-impl WarframeMarketRestClient {
+impl WmRestClient {
     pub const BASE_URL: &'static str = "https://api.warframe.market/v1";
 
-    pub fn new(raw_client: Client) -> Self {
-        let to_error = ToErrorMiddleware::default();
-        let cache = CacheMiddleware::default();
-        let retry = RetryMiddleware::default();
-        let backoff = BackoffMiddleware::default();
-        let jitter = JitterMiddleware::default();
-        let middleware: [Arc<dyn Middleware>; 5] = [
-            Arc::new(to_error),
-            Arc::new(cache),
-            Arc::new(retry),
-            Arc::new(backoff),
-            Arc::new(jitter),
-        ];
+    pub fn new(client: Client) -> Self {
+        let cache_layer = CacheLayer::new(LocalCacheStorage::default());
+        let route_layer = RouteLayer::new(client, Self::BASE_URL.into());
+        let request_layer = ServiceBuilder::new()
+            .layer(RetryLayer::new(TransientRequestRetryPolicy::default()))
+            .layer(LimitLayer::new(10))
+            .layer(BackoffLayer::default())
+            .layer(JitterLayer::default())
+            .map_request(RequestBuilder::from)
+            .map_err(RequestError::from)
+            .check_service::<ExecuteRequestService, RestRequestBuilder, Response, RequestError>();
 
-        // TODO: add caching middleware
-        WarframeMarketRestClient {
-            inner: StandardRestClient::new_with_middleware(
-                raw_client,
-                Self::BASE_URL,
-                middleware,
-            ),
+        Self {
+            cache_layer,
+            route_layer,
+            request_layer: BoxLayer::new(request_layer),
         }
     }
 }
 
 #[async_trait]
-impl RestClient<RouteInfo> for WarframeMarketRestClient {
-    async fn request<R: Route<Info = RouteInfo>>(
-        &self,
-        route: R,
-    ) -> Result<Response, RequestError> {
-        let mut extensions = Extensions::new();
-        extensions.insert(route.info());
+impl<R> RestClient<R> for WmRestClient
+where
+    R: Route<Info = WmRouteInfo>,
+    <R as Route>::Response:
+        Serialize + DeserializeOwned + Send + Sync + 'static,
+{
+    async fn request(&self, route: R) -> Result<R::Response, RequestError> {
+        let service = ServiceBuilder::new()
+            .layer(&self.cache_layer)
+            .layer(&self.route_layer)
+            .layer(&self.request_layer)
+            .check_service::<ExecuteRequestService, R, R::Response, RequestError>()
+            .service(ExecuteRequestService::default());
 
-        self.inner.request_with(route, &mut extensions).await
+        // Execute service
+        service.oneshot(route).await
     }
 }

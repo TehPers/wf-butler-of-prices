@@ -2,7 +2,7 @@ use crate::{InteractionData, SlashCommand, SlashCommandData};
 use anyhow::{bail, Context};
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
-use tracing::{debug, instrument};
+use tracing::{debug, error, instrument};
 use wfinfo_discord::{
     models::{
         ApplicationCommandInteractionData, Interaction, InteractionType,
@@ -40,11 +40,14 @@ impl CommandRegistry {
         let slash_commands = self.slash_commands.read().await;
         let commands = slash_commands.values().map(Into::into).collect();
 
-        BulkOverwriteGlobalApplicationCommands::execute(
+        let result = BulkOverwriteGlobalApplicationCommands::execute(
             client, app_id, commands,
         )
-        .await
-        .context("error overriding application commands")?;
+        .await;
+        if let Err(error) = result.as_ref() {
+            error!("{:#?}", error);
+        }
+        result.context("error overriding application commands")?;
 
         Ok(())
     }

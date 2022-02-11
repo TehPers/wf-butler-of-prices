@@ -1,6 +1,6 @@
 @port={{$dotenv PORT}}
-@baseUrl=http://localhost:{{port}}/api
-# @baseUrl = https://tactician-bot.azurewebsites.net/api
+# @baseUrl=http://localhost:{{port}}/api
+@baseUrl = https://warframe-market-butler-dispatcher.azurewebsites.net/api
 
 ### Ping
 POST {{baseUrl}}/interactions

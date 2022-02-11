@@ -1,109 +1,163 @@
 use crate::{
     models::RateLimit, routes::DiscordRouteInfo, RateLimitBucket, RateLimiter,
 };
-use async_trait::async_trait;
+use anyhow::anyhow;
 use chrono::Utc;
-use derive_more::{Display, Error};
-use reqwest_middleware::{Middleware, Next};
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use derive_more::{Display, Error, From};
+use futures::future::BoxFuture;
+use reqwest::{Response, ResponseBuilderExt};
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    task::{Context, Poll},
+    time::Duration,
+};
 use tokio::sync::Mutex;
-use tracing::{debug, warn};
-use truelayer_extensions::Extensions;
-use wfinfo_lib::reqwest::{Request, Response, ResponseBuilderExt};
+use tower::{Layer, Service};
+use tracing::warn;
+use wfinfo_http::{middleware::RestRequestBuilder, RequestError};
 
 #[derive(Clone, Debug, Default)]
-pub struct RateLimitMiddleware {
+pub struct RateLimitLayer {
     rate_limiters: Arc<Mutex<HashMap<RateLimitBucket, RateLimiter>>>,
 }
 
-#[async_trait]
-impl Middleware for RateLimitMiddleware {
-    async fn handle(
-        &self,
-        req: Request,
-        extensions: &mut Extensions,
-        next: Next<'_>,
-    ) -> reqwest_middleware::Result<Response> {
-        debug!("checking pre-emptive rate limit");
+impl<Next> Layer<Next> for RateLimitLayer {
+    type Service = RateLimitService<Next>;
 
+    fn layer(&self, next: Next) -> Self::Service {
+        RateLimitService {
+            rate_limiters: self.rate_limiters.clone(),
+            next,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RateLimitService<Next> {
+    rate_limiters: Arc<Mutex<HashMap<RateLimitBucket, RateLimiter>>>,
+    next: Next,
+}
+
+impl<Next> Service<RestRequestBuilder> for RateLimitService<Next>
+where
+    Next: Service<RestRequestBuilder, Response = Response>
+        + Send
+        + Sync
+        + 'static,
+    Next::Error: From<RateLimitError>,
+    Next::Future: Send + 'static,
+{
+    type Response = Next::Response;
+    type Error = Next::Error;
+    type Future = BoxFuture<'static, Result<Self::Response, Self::Error>>;
+
+    fn poll_ready(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
+        self.next.poll_ready(cx)
+    }
+
+    fn call(&mut self, req: RestRequestBuilder) -> Self::Future {
         // Get route info
-        let info: &DiscordRouteInfo =
-            extensions.get().ok_or(MiddlewareError::MissingRouteInfo)?;
+        let info: &DiscordRouteInfo = match req.get() {
+            Some(info) => info,
+            None => {
+                return Box::pin(async move {
+                    Err(RateLimitError::MissingRouteInfo)?
+                })
+            }
+        };
 
-        // Get rate limiter for bucket
-        let mut limiter_guard = self.rate_limiters.lock().await;
-        let limiter =
-            limiter_guard
-                .entry(info.bucket.clone())
-                .or_insert(RateLimiter {
-                    bucket: info.bucket.clone(),
+        let bucket = info.bucket.clone();
+        let next_fut = self.next.call(req);
+        let rate_limiters = self.rate_limiters.clone();
+        Box::pin(async move {
+            // Get rate limiter for bucket
+            let mut limiter_guard = rate_limiters.lock().await;
+            let limiter =
+                limiter_guard.entry(bucket.clone()).or_insert(RateLimiter {
+                    bucket: bucket.clone(),
                     limit: 1,
                     remaining: 1,
                     reset: Utc::now(),
                 });
 
-        // Wait until rate limit is refreshed if needed
-        limiter.wait().await;
+            // Wait until rate limit is refreshed if needed
+            limiter.wait().await;
 
-        // Make request
-        let mut response = next.clone().run(req, extensions).await?;
+            // Execute request
+            let mut response = next_fut.await?;
 
-        // Process response
-        limiter.update(&response);
+            // Process response
+            limiter.update(&response);
 
-        // Check for global rate limit
-        let global_limit_hit = response
-            .headers()
-            .get(RateLimiter::RATELIMIT_GLOBAL)
-            .and_then(|v| v.to_str().ok())
-            .filter(|v| v.to_ascii_lowercase() == "true")
-            .is_some();
-        if global_limit_hit {
-            let status = response.status();
-            let headers = response.headers().clone();
-            let url = response.url().clone();
-            let body = response
-                .bytes()
-                .await
-                .map_err(MiddlewareError::ReadBodyError)?;
+            // Check for global rate limit
+            let global_limit_hit = response
+                .headers()
+                .get(RateLimiter::RATELIMIT_GLOBAL)
+                .and_then(|v| v.to_str().ok())
+                .filter(|v| v.to_ascii_lowercase() == "true")
+                .is_some();
+            if global_limit_hit {
+                let status = response.status();
+                let headers = response.headers().clone();
+                let url = response.url().clone();
+                let body = response
+                    .bytes()
+                    .await
+                    .map_err(RateLimitError::ReadBodyError)?;
 
-            // Parse body
-            let limit: RateLimit = serde_json::from_slice(&body)
-                .map_err(MiddlewareError::GlobalRateLimitParseError)?;
-            warn!(?limit, "hit global rate limit");
-            tokio::time::sleep(Duration::from_secs_f32(limit.retry_after))
-                .await;
+                // Parse body
+                let limit: RateLimit = serde_json::from_slice(&body)
+                    .map_err(RateLimitError::GlobalRateLimitParseError)?;
+                warn!(?limit, "hit global rate limit");
+                tokio::time::sleep(Duration::from_secs_f32(limit.retry_after))
+                    .await;
 
-            // Reconstruct response
-            let mut builder = http::Response::builder();
-            *builder.headers_mut().unwrap() = headers;
-            response = builder
-                .status(status)
-                .url(url)
-                .body(body)
-                .map_err(MiddlewareError::ReconstructResponseError)?
-                .into();
-        }
+                // Reconstruct response
+                let mut builder = http::Response::builder();
+                *builder.headers_mut().unwrap() = headers;
+                response = builder
+                    .status(status)
+                    .url(url)
+                    .body(body)
+                    .map_err(RateLimitError::ReconstructResponseError)?
+                    .into();
+            }
 
-        Ok(response)
+            Ok(response)
+        })
     }
 }
 
-#[derive(Debug, Display, Error)]
+#[derive(Debug, Display, Error, From)]
 #[non_exhaustive]
-enum MiddlewareError {
+pub enum RateLimitError {
     #[display(fmt = "missing route info for request")]
     MissingRouteInfo,
-    #[display(fmt = "{}", _0)]
+    #[display(fmt = "{_0}")]
     GlobalRateLimitParseError(serde_json::Error),
     #[display(fmt = "error reading response body")]
-    ReadBodyError(wfinfo_lib::reqwest::Error),
+    ReadBodyError(reqwest::Error),
     #[display(fmt = "error reconstructing response")]
     ReconstructResponseError(http::Error),
 }
 
-impl From<MiddlewareError> for reqwest_middleware::Error {
-    fn from(error: MiddlewareError) -> Self {
-        reqwest_middleware::Error::middleware(error)
+impl From<RateLimitError> for RequestError {
+    fn from(err: RateLimitError) -> Self {
+        match err {
+            RateLimitError::ReadBodyError(err) => {
+                RequestError::ReqwestError(err)
+            }
+            RateLimitError::MissingRouteInfo => anyhow!("{err}").into(),
+            RateLimitError::GlobalRateLimitParseError(_) => {
+                anyhow!("{err}").into()
+            }
+            RateLimitError::ReconstructResponseError(_) => {
+                anyhow!("{err}").into()
+            }
+        }
     }
 }

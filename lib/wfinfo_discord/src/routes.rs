@@ -7,14 +7,15 @@ use crate::{
         EditWebhookMessage, GuildApplicationCommandPermissions,
         InteractionResponse, Message, Snowflake,
     },
-    rate_limit::RateLimitBucket,
+    rate_limit::RateLimitBucket, middleware::ClientSecret,
 };
+use reqwest::Method;
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
     sync::Arc,
 };
-use wfinfo_lib::{reqwest::Method, routes};
+use wfinfo_http::routes;
 
 #[derive(Clone, Debug)]
 pub struct DiscordRouteInfo {
@@ -54,7 +55,9 @@ fn hash_str(s: &str) -> u64 {
 
 routes! {
     (
-        GetChannel { channel_id: Snowflake },
+        GetChannel {
+            channel_id: Snowflake,
+        },
         method = GET "/channels/{channel_id}",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -63,10 +66,12 @@ routes! {
                 [channel_id.to_u64(), 0]
             )
         },
-        helper = Channel,
+        response = [json] Channel,
     ),
     (
-        ModifyChannel { channel_id: Snowflake },
+        ModifyChannel {
+            channel_id: Snowflake,
+        },
         method = PATCH "/channels/{channel_id}",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -75,10 +80,12 @@ routes! {
                 [channel_id.to_u64(), 0],
             )
         },
-        helper = Channel,
+        response = [json] Channel,
     ),
     (
-        DeleteChannel { channel_id: Snowflake },
+        DeleteChannel {
+            channel_id: Snowflake,
+        },
         method = DELETE "/channels/{channel_id}",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -87,10 +94,12 @@ routes! {
                 [channel_id.to_u64(), 0],
             )
         },
-        helper = Channel,
+        response = [json] Channel,
     ),
     (
-        GetChannelMessages { channel_id: Snowflake },
+        GetChannelMessages {
+            channel_id: Snowflake,
+        },
         method = GET "/channels/{channel_id}/messages",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -99,10 +108,13 @@ routes! {
                 [channel_id.to_u64(), 0],
             )
         },
-        helper = Vec<Message>,
+        response = [json] Vec<Message>,
     ),
     (
-        GetChannelMessage { channel_id: Snowflake, message_id: Snowflake },
+        GetChannelMessage {
+            channel_id: Snowflake,
+            message_id: Snowflake,
+        },
         method = GET "/channels/{channel_id}/messages/{message_id}",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -111,11 +123,14 @@ routes! {
                 [channel_id.to_u64(), 0],
             )
         },
-        helper = Message,
+        response = [json] Message,
     ),
     (
-        CreateMessage { channel_id: Snowflake },
-        body = message: CreateMessageModel,
+        CreateMessage {
+            channel_id: Snowflake,
+            message: CreateMessageModel,
+        },
+        body = [json] message,
         method = POST "/channels/{channel_id}/messages",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -124,11 +139,13 @@ routes! {
                 [channel_id.to_u64(), 0],
             )
         },
-        helper = Message,
+        response = [json] Message,
     ),
     // Interactions
     (
-        GetGlobalApplicationCommands { application_id: Snowflake },
+        GetGlobalApplicationCommands {
+            application_id: Snowflake,
+        },
         method = GET "/applications/{application_id}/commands",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -137,11 +154,14 @@ routes! {
                 [0, 0],
             )
         },
-        helper = Vec<ApplicationCommand>,
+        response = [json] Vec<ApplicationCommand>,
     ),
     (
-        CreateGlobalApplicationCommand { application_id: Snowflake },
-        body = command: CreateApplicationCommand,
+        CreateGlobalApplicationCommand {
+            application_id: Snowflake,
+            command: CreateApplicationCommand,
+        },
+        body = [json] command,
         method = POST "/applications/{application_id}/commands",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -150,10 +170,13 @@ routes! {
                 [0, 0],
             )
         },
-        helper = ApplicationCommand,
+        response = [json] ApplicationCommand,
     ),
     (
-        GetGlobalApplicationCommand { application_id: Snowflake, command_id: Snowflake },
+        GetGlobalApplicationCommand {
+            application_id: Snowflake,
+            command_id: Snowflake,
+        },
         method = GET "/applications/{application_id}/commands/{command_id}",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -162,11 +185,15 @@ routes! {
                 [0, 0],
             )
         },
-        helper = ApplicationCommand,
+        response = [json] ApplicationCommand,
     ),
     (
-        EditGlobalApplicationCommand { application_id: Snowflake, command_id: Snowflake },
-        body = command: CreateApplicationCommand,
+        EditGlobalApplicationCommand {
+            application_id: Snowflake,
+            command_id: Snowflake,
+            command: CreateApplicationCommand,
+        },
+        body = [json] command,
         method = PATCH "/applications/{application_id}/commands/{command_id}",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -175,22 +202,28 @@ routes! {
                 [0, 0],
             )
         },
-        helper = ApplicationCommand,
+        response = [json] ApplicationCommand,
     ),
     (
-        DeleteGlobalApplicationCommand { application_id: Snowflake, command_id: Snowflake },
+        DeleteGlobalApplicationCommand {
+            application_id: Snowflake,
+            command_id: Snowflake,
+        },
         method = DELETE "/applications/{application_id}/commands/{command_id}",
-        info = |method, route| -> DiscordRouteInfo {
+        info =  |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
                 method,
                 route,
                 [0, 0],
             )
         },
-        helper = ApplicationCommand,
+        response = [json] ApplicationCommand,
     ),
     (
-        GetGuildApplicationCommands { application_id: Snowflake, guild_id: Snowflake },
+        GetGuildApplicationCommands {
+            application_id: Snowflake,
+            guild_id: Snowflake,
+        },
         method = GET "/applications/{application_id}/guilds/{guild_id}/commands",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -199,11 +232,14 @@ routes! {
                 [0, 0],
             )
         },
-        helper = Vec<ApplicationCommand>,
+        response = [json] Vec<ApplicationCommand>,
     ),
     (
-        BulkOverwriteGlobalApplicationCommands { application_id: Snowflake },
-        body = commands: Vec<CreateApplicationCommand>,
+        BulkOverwriteGlobalApplicationCommands {
+            application_id: Snowflake,
+            commands: Vec<CreateApplicationCommand>,
+        },
+        body = [json] commands,
         method = PUT "/applications/{application_id}/commands",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -212,11 +248,15 @@ routes! {
                 [0, 0],
             )
         },
-        helper = Vec<ApplicationCommand>,
+        response = [json] Vec<ApplicationCommand>,
     ),
     (
-        CreateGuildApplicationCommand { application_id: Snowflake, guild_id: Snowflake },
-        body = command: CreateApplicationCommand,
+        CreateGuildApplicationCommand {
+            application_id: Snowflake,
+            guild_id: Snowflake,
+            command: CreateApplicationCommand,
+        },
+        body = [json] command,
         method = POST "/applications/{application_id}/guilds/{guild_id}/commands",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -225,10 +265,14 @@ routes! {
                 [0, 0],
             )
         },
-        helper = ApplicationCommand,
+        response = [json] ApplicationCommand,
     ),
     (
-        GetGuildApplicationCommand { application_id: Snowflake, guild_id: Snowflake, command_id: Snowflake },
+        GetGuildApplicationCommand {
+            application_id: Snowflake,
+            guild_id: Snowflake,
+            command_id: Snowflake
+        },
         method = GET "/applications/{application_id}/guilds/{guild_id}/commands/{command_id}",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -237,11 +281,16 @@ routes! {
                 [0, 0],
             )
         },
-        helper = ApplicationCommand,
+        response = [json] ApplicationCommand,
     ),
     (
-        EditGuildApplicationCommand { application_id: Snowflake, guild_id: Snowflake, command_id: Snowflake },
-        body = command: CreateApplicationCommand,
+        EditGuildApplicationCommand {
+            application_id: Snowflake,
+            guild_id: Snowflake,
+            command_id: Snowflake,
+            command: CreateApplicationCommand
+        },
+        body = [json] command,
         method = PATCH "/applications/{application_id}/guilds/{guild_id}/commands/{command_id}",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -250,10 +299,14 @@ routes! {
                 [0, 0],
             )
         },
-        helper = ApplicationCommand,
+        response = [json] ApplicationCommand,
     ),
     (
-        DeleteGuildApplicationCommand { application_id: Snowflake, guild_id: Snowflake, command_id: Snowflake },
+        DeleteGuildApplicationCommand {
+            application_id: Snowflake,
+            guild_id: Snowflake,
+            command_id: Snowflake,
+        },
         method = DELETE "/applications/{application_id}/guilds/{guild_id}/commands/{command_id}",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -262,11 +315,15 @@ routes! {
                 [0, 0],
             )
         },
-        helper = ApplicationCommand,
+        response = [json] ApplicationCommand,
     ),
     (
-        BulkOverwriteGuildApplicationCommands { application_id: Snowflake, guild_id: Snowflake },
-        body = commands: Vec<CreateApplicationCommand>,
+        BulkOverwriteGuildApplicationCommands {
+            application_id: Snowflake,
+            guild_id: Snowflake,
+            commands: Vec<CreateApplicationCommand>,
+        },
+        body = [json] commands,
         method = PUT "/applications/{application_id}/guilds/{guild_id}/commands",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -275,11 +332,15 @@ routes! {
                 [0, 0],
             )
         },
-        helper = Vec<ApplicationCommand>,
+        response = [json] Vec<ApplicationCommand>,
     ),
     (
-        CreateInteractionResponse { interaction_id: Snowflake, interaction_token: String },
-        body = response: InteractionResponse,
+        CreateInteractionResponse {
+            interaction_id: Snowflake,
+            interaction_token: String,
+            response: InteractionResponse,
+        },
+        body = [json] response,
         method = POST "/interactions/{interaction_id}/{interaction_token}/callback",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -288,10 +349,13 @@ routes! {
                 [0, 0],
             )
         },
-        helper = Message,
+        response = [json] Message,
     ),
     (
-        GetOriginalInteractionResponse { application_id: Snowflake, interaction_token: String },
+        GetOriginalInteractionResponse {
+            application_id: Snowflake,
+            interaction_token: String,
+        },
         method = GET "/webhooks/{application_id}/{interaction_token}/messages/@original",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -300,11 +364,15 @@ routes! {
                 [application_id.to_u64(), hash_str(interaction_token)],
             )
         },
-        helper = Message,
+        response = [json] Message,
     ),
     (
-        EditOriginalInteractionResponse { application_id: Snowflake, interaction_token: String },
-        body = message: EditWebhookMessage,
+        EditOriginalInteractionResponse {
+            application_id: Snowflake,
+            interaction_token: String,
+            message: EditWebhookMessage,
+        },
+        body = [json] message,
         method = PATCH "/webhooks/{application_id}/{interaction_token}/messages/@original",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -313,10 +381,13 @@ routes! {
                 [application_id.to_u64(), hash_str(interaction_token)],
             )
         },
-        helper = Message,
+        response = [json] Message,
     ),
     (
-        DeleteOriginalInteractionResponse { application_id: Snowflake, interaction_token: String },
+        DeleteOriginalInteractionResponse {
+            application_id: Snowflake,
+            interaction_token: String,
+        },
         method = DELETE "/webhooks/{application_id}/{interaction_token}/messages/@original",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -325,11 +396,15 @@ routes! {
                 [application_id.to_u64(), hash_str(interaction_token)],
             )
         },
-        helper = (),
+        response = [json] (),
     ),
     (
-        CreateFollowupMessage { application_id: Snowflake, interaction_token: String },
-        body = message: CreateWebhookMessage,
+        CreateFollowupMessage {
+            application_id: Snowflake,
+            interaction_token: String,
+            message: CreateWebhookMessage,
+        },
+        body = [json] message,
         method = POST "/webhooks/{application_id}/{interaction_token}",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -338,10 +413,14 @@ routes! {
                 [application_id.to_u64(), hash_str(interaction_token)],
             )
         },
-        helper = Message,
+        response = [json] Message,
     ),
     (
-        GetFollowupMessage { application_id: Snowflake, interaction_token: String, message_id: Snowflake },
+        GetFollowupMessage {
+            application_id: Snowflake,
+            interaction_token: String,
+            message_id: Snowflake,
+        },
         method = GET "/webhooks/{application_id}/{interaction_token}/messages/{message_id}",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -350,10 +429,14 @@ routes! {
                 [application_id.to_u64(), hash_str(interaction_token)],
             )
         },
-        helper = Message,
+        response = [json] Message,
     ),
     (
-        EditFollowupMessage { application_id: Snowflake, interaction_token: String, message_id: Snowflake },
+        EditFollowupMessage {
+            application_id: Snowflake,
+            interaction_token: String,
+            message_id: Snowflake,
+        },
         method = PATCH "/webhooks/{application_id}/{interaction_token}/messages/{message_id}",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -362,10 +445,14 @@ routes! {
                 [application_id.to_u64(), hash_str(interaction_token)],
             )
         },
-        helper = Message,
+        response = [json] Message,
     ),
     (
-        DeleteFollowupMessage { application_id: Snowflake, interaction_token: String, message_id: Snowflake },
+        DeleteFollowupMessage {
+            application_id: Snowflake,
+            interaction_token: String,
+            message_id: Snowflake,
+        },
         method = DELETE "/webhooks/{application_id}/{interaction_token}/messages/{message_id}",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -374,10 +461,13 @@ routes! {
                 [application_id.to_u64(), hash_str(interaction_token)],
             )
         },
-        helper = (),
+        response = [json] (),
     ),
     (
-        GetGuildApplicationCommandPermissions { application_id: Snowflake, guild_id: Snowflake },
+        GetGuildApplicationCommandPermissions {
+            application_id: Snowflake,
+            guild_id: Snowflake,
+        },
         method = GET "/applications/{application_id}/guilds/{guild_id}/commands/permissions",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -386,10 +476,14 @@ routes! {
                 [0, 0],
             )
         },
-        helper = GuildApplicationCommandPermissions,
+        response = [json] GuildApplicationCommandPermissions,
     ),
     (
-        GetApplicationCommandPermissions { application_id: Snowflake, guild_id: Snowflake, command_id: Snowflake },
+        GetApplicationCommandPermissions {
+            application_id: Snowflake,
+            guild_id: Snowflake,
+            command_id: Snowflake,
+        },
         method = GET "/applications/{application_id}/guilds/{guild_id}/commands/{command_id}/permissions",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -398,11 +492,16 @@ routes! {
                 [0, 0],
             )
         },
-        helper = GuildApplicationCommandPermissions,
+        response = [json] GuildApplicationCommandPermissions,
     ),
     (
-        EditApplicationCommandPermissions { application_id: Snowflake, guild_id: Snowflake, command_id: Snowflake },
-        body = permissions: CreateGuildApplicationCommandPermissions,
+        EditApplicationCommandPermissions {
+            application_id: Snowflake,
+            guild_id: Snowflake,
+            command_id: Snowflake,
+            permissions: CreateGuildApplicationCommandPermissions,
+        },
+        body = [json] permissions,
         method = PUT "/applications/{application_id}/guilds/{guild_id}/commands/{command_id}/permissions",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -411,11 +510,15 @@ routes! {
                 [0, 0],
             )
         },
-        helper = GuildApplicationCommandPermissions,
+        response = [json] GuildApplicationCommandPermissions,
     ),
     (
-        BatchEditApplicationCommandPermissions { application_id: Snowflake, guild_id: Snowflake },
-        body = permissions: Vec<BatchEditGuildApplicationCommandPermissions>,
+        BatchEditApplicationCommandPermissions {
+            application_id: Snowflake,
+            guild_id: Snowflake,
+            permissions: Vec<BatchEditGuildApplicationCommandPermissions>,
+        },
+        body = [json] permissions,
         method = PUT "/applications/{application_id}/guilds/{guild_id}/commands/permissions",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::with_auth(
@@ -424,13 +527,16 @@ routes! {
                 [0, 0],
             )
         },
-        helper = Vec<GuildApplicationCommandPermissions>,
+        response = [json] Vec<GuildApplicationCommandPermissions>,
     ),
     // OAuth2
     (
-        AuthenticateClientCredentialsGrant { },
-        body = [form] scope: ClientCredentialsRequest,
-        extra = { client_id: Snowflake, client_secret: Arc<String> },
+        AuthenticateClientCredentialsGrant {
+            scope: ClientCredentialsRequest,
+            client_id: Snowflake,
+            client_secret: Arc<ClientSecret>,
+        },
+        body = [form] scope,
         method = POST "/oauth2/token",
         info = |method, route| -> DiscordRouteInfo {
             DiscordRouteInfo::without_auth(
@@ -439,7 +545,7 @@ routes! {
                 [0, 0],
             )
         },
-        processor = |req| req.basic_auth(client_id, Some(client_secret)),
-        helper = ClientCredentials,
+        processor = |req| req.basic_auth(client_id, Some(&***client_secret)),
+        response = [json] ClientCredentials,
     ),
 }

@@ -1,141 +1,173 @@
-use crate::routes::{CacheBucket, RouteInfo};
+use anyhow::Context as _;
 use async_trait::async_trait;
-use bytes::Bytes;
-use chrono::{DateTime, Utc};
-use derive_more::{Display, Error};
-use http::{HeaderMap, StatusCode};
-use reqwest_middleware::{Middleware, Next};
+use futures::{future::BoxFuture, FutureExt};
+use serde::{de::DeserializeOwned, Serialize};
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    borrow::Cow,
+    collections::HashMap,
+    fmt::Debug,
+    future::Future,
     sync::Arc,
+    task::{Context, Poll},
+    time::{Duration, Instant},
 };
 use tokio::sync::RwLock;
-use tracing::debug;
-use truelayer_extensions::Extensions;
-use wfinfo_lib::reqwest::{Request, Response, ResponseBuilderExt, Url};
+use tower::{Layer, Service};
+use wfinfo_http::Route;
 
-#[derive(Clone, Debug, Default)]
-pub struct CacheMiddleware {
-    buckets: Arc<RwLock<HashMap<CacheBucket, CacheEntry>>>,
+#[derive(Debug, Default)]
+pub struct CacheLayer<S> {
+    storage: Arc<S>,
 }
 
-#[async_trait]
-impl Middleware for CacheMiddleware {
-    async fn handle(
-        &self,
-        req: Request,
-        extensions: &mut Extensions,
-        next: Next<'_>,
-    ) -> reqwest_middleware::Result<Response> {
-        // Get route info
-        let info: &RouteInfo =
-            extensions.get().ok_or(MiddlewareError::MissingRouteInfo)?;
-        let bucket = match info.bucket.as_ref() {
-            Some(bucket) => bucket,
-            None => return next.run(req, extensions).await,
-        };
-        let cache_time = info.cache_time;
-
-        // Check if cached
-        let now = Utc::now();
-        let buckets_guard = self.buckets.read().await;
-        let entry = buckets_guard
-            .get(bucket)
-            .filter(|entry| !entry.expired(now));
-
-        // Early return if cached
-        if let Some(entry) = entry {
-            debug!(?bucket, "returning cached entry");
-            return entry.response();
+impl<S> CacheLayer<S> {
+    pub fn new(storage: S) -> Self {
+        CacheLayer {
+            storage: Arc::new(storage),
         }
+    }
+}
 
-        // Make request
-        drop(buckets_guard);
-        let bucket = bucket.clone();
-        let response = next.run(req, extensions).await?;
+impl<S> Clone for CacheLayer<S> {
+    fn clone(&self) -> Self {
+        Self {
+            storage: self.storage.clone(),
+        }
+    }
+}
 
-        // Cache response
-        let expires = cache_time.map(|cache_time| Utc::now() + cache_time);
-        let mut buckets_guard = self.buckets.write().await;
-        match buckets_guard.entry(bucket) {
-            Entry::Occupied(mut entry) => {
-                entry.insert(
-                    CacheEntry::from_response(response, expires).await?,
-                );
-                entry.get().response()
-            }
-            Entry::Vacant(entry) => entry
-                .insert(CacheEntry::from_response(response, expires).await?)
-                .response(),
+impl<S, Next> Layer<Next> for CacheLayer<S> {
+    type Service = CacheService<S, Next>;
+
+    fn layer(&self, next: Next) -> Self::Service {
+        CacheService {
+            storage: self.storage.clone(),
+            next,
         }
     }
 }
 
 #[derive(Clone, Debug)]
-struct CacheEntry {
-    expires: Option<DateTime<Utc>>,
-    status: StatusCode,
-    headers: HeaderMap,
-    url: Url,
-    body: Bytes,
+pub struct CacheService<S, Next> {
+    storage: Arc<S>,
+    next: Next,
 }
 
-impl CacheEntry {
-    pub async fn from_response(
-        response: Response,
-        expires: Option<DateTime<Utc>>,
-    ) -> reqwest_middleware::Result<Self> {
-        let status = response.status();
-        let headers = response.headers().clone();
-        let url = response.url().clone();
-        let body = response
-            .bytes()
-            .await
-            .map_err(MiddlewareError::ReadBodyError)?;
+impl<S, Req, Next> Service<Req> for CacheService<S, Next>
+where
+    S: CacheStorage,
+    Req: Route,
+    Req::Info: AsCacheInfo,
+    Next: Service<Req>,
+    Next::Response: Serialize + DeserializeOwned,
+    Next::Error: From<anyhow::Error>,
+    Next::Future: Send + 'static,
+{
+    type Response = Next::Response;
+    type Error = Next::Error;
+    type Future = BoxFuture<'static, Result<Self::Response, Self::Error>>;
 
-        Ok(CacheEntry {
-            expires,
-            status,
-            headers,
-            url,
-            body,
+    fn poll_ready(
+        &mut self,
+        cx: &mut Context<'_>,
+    ) -> Poll<Result<(), Self::Error>> {
+        self.next.poll_ready(cx)
+    }
+
+    fn call(&mut self, req: Req) -> Self::Future {
+        let info = req.info();
+        let next_fut = self.next.call(req);
+        let storage = self.storage.clone();
+        let (key, expiry_secs) = match info.cache_info() {
+            Some(cache_info) => {
+                (cache_info.bucket.to_string(), cache_info.expiry_secs)
+            }
+            None => return next_fut.boxed(),
+        };
+
+        Box::pin(async move {
+            let val =
+                storage.get_or_insert(&key, expiry_secs, next_fut).await?;
+            Ok(val)
         })
     }
+}
 
-    pub fn expired(&self, now: DateTime<Utc>) -> bool {
-        match self.expires {
-            None => false,
-            Some(expires) => now >= expires,
+pub trait AsCacheInfo {
+    fn cache_info(&self) -> Option<CacheInfo<'_>>;
+}
+
+#[derive(Clone, Debug)]
+pub struct CacheInfo<'a> {
+    pub bucket: Cow<'a, str>,
+    pub expiry_secs: u64,
+}
+
+impl<'a> AsCacheInfo for CacheInfo<'a> {
+    fn cache_info(&self) -> Option<CacheInfo<'_>> {
+        Some(self.clone())
+    }
+}
+
+impl<'a> AsCacheInfo for Option<CacheInfo<'a>> {
+    fn cache_info(&self) -> Option<CacheInfo<'_>> {
+        self.clone()
+    }
+}
+
+#[async_trait]
+pub trait CacheStorage: Send + Sync + 'static {
+    async fn get_or_insert<T, E, F>(
+        &self,
+        key: &str,
+        expiry_secs: u64,
+        f: F,
+    ) -> Result<T, E>
+    where
+        T: Serialize + DeserializeOwned,
+        E: From<anyhow::Error>,
+        F: Send + Future<Output = Result<T, E>>;
+}
+
+#[async_trait]
+impl CacheStorage for RwLock<HashMap<String, (String, Instant)>> {
+    async fn get_or_insert<T, E, F>(
+        &self,
+        key: &str,
+        expiry_secs: u64,
+        f: F,
+    ) -> Result<T, E>
+    where
+        T: Serialize + DeserializeOwned,
+        E: From<anyhow::Error>,
+        F: Send + Future<Output = Result<T, E>>,
+    {
+        // Fast path - cache hit
+        let guard = self.read().await;
+        if let Some(value) = guard.get(key) {
+            let now = Instant::now();
+            if now < value.1 {
+                let value = serde_json::from_str(&value.0)
+                    .context("error deserializing cached value")?;
+                return Ok(value);
+            }
         }
-    }
+        drop(guard);
 
-    pub fn response(&self) -> reqwest_middleware::Result<Response> {
-        // Reconstruct response
-        let mut builder = http::Response::builder();
-        *builder.headers_mut().unwrap() = self.headers.clone();
-        let response = builder
-            .status(self.status)
-            .url(self.url.clone())
-            .body(self.body.clone())
-            .map_err(MiddlewareError::ReconstructResponseError)?
-            .into();
-        Ok(response)
-    }
-}
-
-#[derive(Debug, Display, Error)]
-#[non_exhaustive]
-enum MiddlewareError {
-    #[display(fmt = "missing route info for request")]
-    MissingRouteInfo,
-    #[display(fmt = "error reading response body")]
-    ReadBodyError(wfinfo_lib::reqwest::Error),
-    #[display(fmt = "error reconstructing response")]
-    ReconstructResponseError(http::Error),
-}
-
-impl From<MiddlewareError> for reqwest_middleware::Error {
-    fn from(error: MiddlewareError) -> Self {
-        reqwest_middleware::Error::middleware(error)
+        // Slow path - cache miss
+        let mut guard = self.write().await;
+        let value = f.await?;
+        let serialized = serde_json::to_string(&value)
+            .context("error serializing value for cache")?;
+        guard.insert(
+            key.into(),
+            (
+                serialized,
+                Instant::now() + Duration::from_secs(expiry_secs),
+            ),
+        );
+        Ok(value)
     }
 }
+
+pub type LocalCacheStorage = RwLock<HashMap<String, (String, Instant)>>;

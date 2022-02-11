@@ -1,26 +1,25 @@
 use crate::services::WarframeItemService;
-use anyhow::Context;
-use std::{fmt::Write, sync::Arc};
-use tracing::debug;
+use anyhow::{bail, Context};
+use std::{borrow::Cow, fmt::Write, str::FromStr, sync::Arc};
 use wfinfo_commands::{
     create_callback, Choice, CommandBuilder, CommandOptionRegistry,
-    HandleInteractionError, InteractionData, SlashCommand,
+    InteractionData, SlashCommand,
 };
 use wfinfo_discord::{
     models::{
         AllowedMentions, CreateWebhookMessage, Embed, EmbedField,
-        EmbedThumbnail, Snowflake,
+        EmbedThumbnail, MessageFlags, Snowflake,
     },
     routes::CreateFollowupMessage,
     DiscordRestClient,
 };
 use wfinfo_wm::{
     models::{
-        ItemFull, ItemOrdersPayload, ItemPayload, OrderType, PayloadResponse,
-        Platform, UserStatus,
+        ItemFull, ItemOrder, ItemOrdersPayload, ItemPayload, ItemRank,
+        OrderType, PayloadResponse, Platform, RelicRefinement, UserStatus,
     },
     routes::GetItemOrders,
-    WarframeMarketRestClient,
+    WmRestClient,
 };
 
 const WM_ASSETS_ROOT: &'static str = "http://warframe.market/static/assets/";
@@ -28,19 +27,52 @@ const PLAT: &'static str = "<:WFPlatinum:380292389798936579>";
 
 pub fn pc_command(
     discord_client: DiscordRestClient,
-    wm_client: WarframeMarketRestClient,
+    wm_client: WmRestClient,
     item_service: WarframeItemService,
     app_id: Snowflake,
 ) -> SlashCommand {
-    let query_item_callback = create_callback! {
+    let pc_items_callback = create_callback! {
         capture: {
-            discord_client: DiscordRestClient = discord_client,
-            wm_client: WarframeMarketRestClient = wm_client,
-            item_service: WarframeItemService = item_service,
+            discord_client: DiscordRestClient = discord_client.clone(),
+            wm_client: WmRestClient = wm_client.clone(),
+            item_service: WarframeItemService = item_service.clone(),
             app_id: Snowflake = app_id,
         },
         handler: async |interaction_data, _, options| {
-            pc(interaction_data, options, discord_client, wm_client, item_service, app_id).await
+            pc_items(interaction_data, options, discord_client, wm_client, item_service, app_id).await
+        },
+    };
+    let pc_mod_callback = create_callback! {
+        capture: {
+            discord_client: DiscordRestClient = discord_client.clone(),
+            wm_client: WmRestClient = wm_client.clone(),
+            item_service: WarframeItemService = item_service.clone(),
+            app_id: Snowflake = app_id,
+        },
+        handler: async |interaction_data, _, options| {
+            pc_mod_or_arcane(interaction_data, options, discord_client, wm_client, item_service, app_id).await
+        },
+    };
+    let pc_arcane_callback = create_callback! {
+        capture: {
+            discord_client: DiscordRestClient = discord_client.clone(),
+            wm_client: WmRestClient = wm_client.clone(),
+            item_service: WarframeItemService = item_service.clone(),
+            app_id: Snowflake = app_id,
+        },
+        handler: async |interaction_data, _, options| {
+            pc_mod_or_arcane(interaction_data, options, discord_client, wm_client, item_service, app_id).await
+        },
+    };
+    let pc_relic_callback = create_callback! {
+        capture: {
+            discord_client: DiscordRestClient = discord_client.clone(),
+            wm_client: WmRestClient = wm_client.clone(),
+            item_service: WarframeItemService = item_service.clone(),
+            app_id: Snowflake = app_id,
+        },
+        handler: async |interaction_data, _, options| {
+            pc_relic(interaction_data, options, discord_client, wm_client, item_service, app_id).await
         },
     };
 
@@ -57,10 +89,14 @@ pub fn pc_command(
                         .name("name")
                         .description("The name of the item to get the price of")
                         .required(true)
-                        .build()
                 })
-                .callback(query_item_callback)
-                .build()
+                .string_option(|builder| {
+                    builder.name("platform")
+                        .description("The platform")
+                        .choices(PlatformChoice::choices().into_iter().collect())
+                        .required(false)
+                })
+                .callback(pc_items_callback)
         })
         .subcommand_option(|builder| {
             builder.name("mod")
@@ -69,63 +105,286 @@ pub fn pc_command(
                     builder.name("name")
                         .description("The name of the mod to get the price of")
                         .required(true)
-                        .build()
+                })
+                .string_option(|builder| {
+                    builder.name("platform")
+                        .description("The platform")
+                        .choices(PlatformChoice::choices().into_iter().collect())
+                        .required(false)
                 })
                 .integer_option(|builder| {
                     builder.name("rank")
                         .description("The rank of the mod")
-                        .choices((0..=10).map(|n| Choice {
-                            name: n.to_string().into(),
-                            value: n,
-                        }))
                         .required(false)
-                        .build()
                 })
-                .build()
+                .callback(pc_mod_callback)
+        })
+        .subcommand_option(|builder| {
+            builder.name("arcane")
+                .description("Searches for the price of an arcane")
+                .string_option(|builder| {
+                    builder.name("name")
+                        .description("The name of the arcane to get the price of")
+                        .required(true)
+                })
+                .string_option(|builder| {
+                    builder.name("platform")
+                        .description("The platform")
+                        .choices(PlatformChoice::choices().into_iter().collect())
+                        .required(false)
+                })
+                .integer_option(|builder| {
+                    builder.name("rank")
+                        .description("The rank of the arcane")
+                        .required(false)
+                })
+                .callback(pc_arcane_callback)
+        })
+        .subcommand_option(|builder| {
+            builder.name("relic")
+                .description("Searches for the price of a relic")
+                .string_option(|builder| {
+                    builder.name("name")
+                        .description("The name of the relic to get the price of")
+                        .required(true)
+                })
+                .string_option(|builder| {
+                    builder.name("platform")
+                        .description("The platform")
+                        .choices(PlatformChoice::choices().into_iter().collect())
+                        .required(false)
+                })
+                .string_option(|builder| {
+                    builder.name("refinement")
+                        .description("The refinement level of the relic")
+                        .choices(RelicRefinementChoice::choices().into_iter().collect())
+                        .required(false)
+                })
+                .callback(pc_relic_callback)
         })
         .build()
 }
 
-async fn pc<'opts>(
-    interaction_data: Arc<InteractionData>,
-    options: CommandOptionRegistry<'opts>,
-    client: &DiscordRestClient,
-    wm_client: &WarframeMarketRestClient,
-    item_service: &WarframeItemService,
-    app_id: &Snowflake,
-) -> Result<(), HandleInteractionError> {
-    debug!("handling pc command");
+macro_rules! enum_choice {
+    {
+        $(#[$($attr:meta),* $(,)?])*
+        enum $name:ident {
+            $($variant:ident = $choice_val:literal),*
+            $(,)?
+        }
+    } => {
+        $(#[$($attr),*])*
+        enum $name {
+            $($variant,)*
+        }
 
-    let item_name: &str = options.get_option("item")?;
-    let item_name = item_name.to_lowercase();
-    let url_name = item_service.get_url_name(&item_name);
-    let url_name = match url_name {
-        Some(url_name) => url_name,
-        None => {
-            CreateFollowupMessage::execute(
-                client,
-                *app_id,
-                interaction_data.token.clone(),
-                error_response(format!(
-                    "No item with the name '{}' found",
-                    item_name
-                )),
-            )
-            .await
-            .context("error creating response")?;
+        impl $name {
+            pub fn variants() -> impl IntoIterator<Item = Self> {
+                [$(Self::$variant),*]
+            }
 
-            return Ok(());
+            pub fn choices() -> impl IntoIterator<Item = Choice<Cow<'static, str>>> {
+                Self::variants()
+                    .into_iter()
+                    .map(Self::to_choice)
+            }
+
+            pub fn to_choice(self) -> Choice<Cow<'static, str>> {
+                match self {
+                    $(
+                        Self::$variant => Choice {
+                            name: stringify!($variant).into(),
+                            value: $choice_val.into()
+                        },
+                    )*
+                }
+            }
+        }
+
+        impl FromStr for $name {
+            type Err = anyhow::Error;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                match s {
+                    $($choice_val => Ok(Self::$variant),)*
+                    _ => bail!("unknown variant: '{}'", s),
+                }
+            }
         }
     };
+}
 
-    let response =
-        GetItemOrders::execute(wm_client, url_name.as_str(), Platform::PC)
-            .await
-            .context("error getting item orders")?;
+enum_choice! {
+    #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+    enum RelicRefinementChoice {
+        Intact = "intact",
+        Exceptional = "exceptional",
+        Flawless = "flawless",
+        Radiant = "radiant",
+    }
+}
 
-    let message = create_response(response);
+impl From<RelicRefinementChoice> for RelicRefinement {
+    fn from(refinement: RelicRefinementChoice) -> Self {
+        match refinement {
+            RelicRefinementChoice::Intact => RelicRefinement::Intact,
+            RelicRefinementChoice::Exceptional => RelicRefinement::Exceptional,
+            RelicRefinementChoice::Flawless => RelicRefinement::Flawless,
+            RelicRefinementChoice::Radiant => RelicRefinement::Radiant,
+        }
+    }
+}
+
+enum_choice! {
+    #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+    enum PlatformChoice {
+        PC = "pc",
+        XBox = "xbox",
+        PS4 = "ps4",
+        Switch = "switch",
+    }
+}
+
+impl From<PlatformChoice> for Platform {
+    fn from(platform: PlatformChoice) -> Self {
+        match platform {
+            PlatformChoice::PC => Platform::PC,
+            PlatformChoice::XBox => Platform::XBox,
+            PlatformChoice::PS4 => Platform::PS4,
+            PlatformChoice::Switch => Platform::Switch,
+        }
+    }
+}
+
+async fn pc_items<'opts>(
+    interaction_data: Arc<InteractionData>,
+    options: CommandOptionRegistry<'opts>,
+    discord_client: &DiscordRestClient,
+    wm_client: &WmRestClient,
+    item_service: &WarframeItemService,
+    app_id: &Snowflake,
+) -> anyhow::Result<()> {
+    // Get options
+    let item_name: &str = options.get_option("name")?;
+    let item_name = item_name.to_lowercase();
+    let platform = options
+        .get_optional_option("platform")
+        .context("error getting option")?
+        .map(|platform: &str| platform.parse())
+        .transpose()
+        .context("error parsing option")?
+        .map(PlatformChoice::into);
+
+    pc_filtered(
+        interaction_data,
+        discord_client,
+        wm_client,
+        item_service,
+        app_id,
+        &item_name,
+        OrderFilters {
+            platform,
+            rank: RankFilter::Item,
+        },
+    )
+    .await
+}
+
+async fn pc_mod_or_arcane<'opts>(
+    interaction_data: Arc<InteractionData>,
+    options: CommandOptionRegistry<'opts>,
+    discord_client: &DiscordRestClient,
+    wm_client: &WmRestClient,
+    item_service: &WarframeItemService,
+    app_id: &Snowflake,
+) -> anyhow::Result<()> {
+    // Get options
+    let item_name: &str = options.get_option("name")?;
+    let item_name = item_name.to_lowercase();
+    let rank = options.get_optional_option("rank")?;
+    let platform = options
+        .get_optional_option("platform")
+        .context("error getting platform")?
+        .map(|platform: &str| platform.parse())
+        .transpose()
+        .context("error parsing platform")?
+        .map(PlatformChoice::into);
+
+    pc_filtered(
+        interaction_data,
+        discord_client,
+        wm_client,
+        item_service,
+        app_id,
+        &item_name,
+        OrderFilters {
+            platform,
+            rank: RankFilter::ModOrArcane { rank },
+        },
+    )
+    .await
+}
+
+async fn pc_relic<'opts>(
+    interaction_data: Arc<InteractionData>,
+    options: CommandOptionRegistry<'opts>,
+    discord_client: &DiscordRestClient,
+    wm_client: &WmRestClient,
+    item_service: &WarframeItemService,
+    app_id: &Snowflake,
+) -> anyhow::Result<()> {
+    // Get options
+    let item_name: &str = options.get_option("name")?;
+    let item_name = item_name.to_lowercase();
+    let refinement = options
+        .get_optional_option("refinement")
+        .context("error getting refinement")?
+        .map(|refinement: &str| refinement.parse())
+        .transpose()
+        .context("error parsing refinement")?
+        .map(RelicRefinementChoice::into);
+    let platform = options
+        .get_optional_option("platform")
+        .context("error getting platform")?
+        .map(|platform: &str| platform.parse())
+        .transpose()
+        .context("error parsing platform")?
+        .map(PlatformChoice::into);
+
+    pc_filtered(
+        interaction_data,
+        discord_client,
+        wm_client,
+        item_service,
+        app_id,
+        &item_name,
+        OrderFilters {
+            platform,
+            rank: RankFilter::Relic { refinement },
+        },
+    )
+    .await
+}
+
+async fn pc_filtered<'opts>(
+    interaction_data: Arc<InteractionData>,
+    discord_client: &DiscordRestClient,
+    wm_client: &WmRestClient,
+    item_service: &WarframeItemService,
+    app_id: &Snowflake,
+    item_name: &str,
+    order_filters: OrderFilters,
+) -> anyhow::Result<()> {
+    // Get message
+    let message = process(wm_client, item_service, &item_name, order_filters)
+        .await
+        .unwrap_or_else(|error| {
+            error_response(format!("```\n{:#?}\n```", error))
+        });
+
+    // Send response
     CreateFollowupMessage::execute(
-        client,
+        discord_client,
         *app_id,
         interaction_data.token.clone(),
         message,
@@ -136,52 +395,78 @@ async fn pc<'opts>(
     Ok(())
 }
 
-fn error_response(content: impl Into<String>) -> CreateWebhookMessage {
-    CreateWebhookMessage {
-        embeds: Some(vec![Embed {
-            title: Some("Error".into()),
-            description: Some(content.into()),
-            ..Default::default()
-        }]),
-        allowed_mentions: Some(AllowedMentions {
-            parse: Some(vec![]),
-            ..Default::default()
-        }),
-        ..Default::default()
+#[derive(Clone, Debug)]
+struct OrderFilters {
+    pub platform: Option<Platform>,
+    pub rank: RankFilter,
+}
+
+impl OrderFilters {
+    pub fn matches(&self, order: &ItemOrder) -> bool {
+        // Platform
+        if let Some(platform) = self.platform {
+            if platform != order.platform {
+                return false;
+            }
+        }
+
+        // Item rank/refinement
+        match self.rank {
+            RankFilter::Item => matches!(order.rank, ItemRank::Item {}),
+            RankFilter::ModOrArcane { rank: rank_filter } => match order.rank {
+                ItemRank::ModOrArcane { mod_rank } => {
+                    rank_filter.map_or(true, |filter| mod_rank == filter)
+                }
+                _ => false,
+            },
+            RankFilter::Relic {
+                refinement: refinement_filter,
+            } => match order.rank {
+                ItemRank::Relic { refinement } => refinement_filter
+                    .map_or(true, |filter| refinement == filter),
+                _ => false,
+            },
+        }
     }
 }
 
-fn partial_error_response(
-    content: impl Into<String>,
-    item_details: &ItemFull,
-) -> CreateWebhookMessage {
-    CreateWebhookMessage {
-        embeds: Some(vec![Embed {
-            title: Some(format!("Error ({})", item_details.en.item_name)),
-            description: Some(content.into()),
-            thumbnail: Some(EmbedThumbnail {
-                url: Some(format!(
-                    "{}{}",
-                    WM_ASSETS_ROOT,
-                    item_details
-                        .sub_icon
-                        .as_ref()
-                        .unwrap_or(&item_details.icon)
-                )),
-                ..Default::default()
-            }),
-            ..Default::default()
-        }]),
-        allowed_mentions: Some(AllowedMentions {
-            parse: Some(vec![]),
-            ..Default::default()
-        }),
-        ..Default::default()
-    }
+#[derive(Clone, Debug)]
+enum RankFilter {
+    ModOrArcane { rank: Option<u8> },
+    Relic { refinement: Option<RelicRefinement> },
+    Item,
+}
+
+async fn process(
+    wm_client: &WmRestClient,
+    item_service: &WarframeItemService,
+    item_name: &str,
+    order_filters: OrderFilters,
+) -> anyhow::Result<CreateWebhookMessage> {
+    // Look up item name
+    let url_name = item_service.get_url_name(&item_name);
+    let url_name = match url_name {
+        Some(url_name) => url_name,
+        None => bail!("No item with the name '{item_name}' found"),
+    };
+
+    // Get orders
+    let response = GetItemOrders::execute(
+        wm_client,
+        url_name.as_ref().to_owned(),
+        order_filters.platform,
+    )
+    .await
+    .context("error getting item orders")?;
+
+    // Build response
+    let message = create_response(response, order_filters);
+    Ok(message)
 }
 
 fn create_response(
     wm_res: PayloadResponse<ItemOrdersPayload, ItemPayload>,
+    order_filters: OrderFilters,
 ) -> CreateWebhookMessage {
     // Get item details
     let item_details = match wm_res.include.as_ref() {
@@ -206,9 +491,11 @@ fn create_response(
         .orders
         .iter()
         .filter(|order| {
+            // Only show sell orders by people current ingame
             order.order_type == OrderType::Sell
                 && order.user.status == UserStatus::InGame
         })
+        .filter(|order| order_filters.matches(order))
         .collect();
 
     // Check if no orders
@@ -275,7 +562,7 @@ fn create_response(
         ]),
         ..Default::default()
     };
-    let offers =
+    let offers_description =
         orders
             .iter()
             .take(3)
@@ -304,13 +591,58 @@ fn create_response(
             });
 
     let offers_embed = Embed {
-        title: Some("Best Offers".to_string()),
-        description: Some(offers),
+        title: Some(format!("Best Offers ({} sellers)", orders.len())),
+        description: Some(offers_description),
         ..Default::default()
     };
 
     CreateWebhookMessage {
         embeds: Some(vec![main_embed, offers_embed]),
+        allowed_mentions: Some(AllowedMentions {
+            parse: Some(vec![]),
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
+fn error_response(content: impl Into<String>) -> CreateWebhookMessage {
+    CreateWebhookMessage {
+        embeds: Some(vec![Embed {
+            title: Some("Error".into()),
+            description: Some(content.into()),
+            ..Default::default()
+        }]),
+        allowed_mentions: Some(AllowedMentions {
+            parse: Some(vec![]),
+            ..Default::default()
+        }),
+        flags: Some(MessageFlags::EPHEMERAL),
+        ..Default::default()
+    }
+}
+
+fn partial_error_response(
+    content: impl Into<String>,
+    item_details: &ItemFull,
+) -> CreateWebhookMessage {
+    CreateWebhookMessage {
+        embeds: Some(vec![Embed {
+            title: Some(format!("Error ({})", item_details.en.item_name)),
+            description: Some(content.into()),
+            thumbnail: Some(EmbedThumbnail {
+                url: Some(format!(
+                    "{}{}",
+                    WM_ASSETS_ROOT,
+                    item_details
+                        .sub_icon
+                        .as_ref()
+                        .unwrap_or(&item_details.icon)
+                )),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }]),
         allowed_mentions: Some(AllowedMentions {
             parse: Some(vec![]),
             ..Default::default()

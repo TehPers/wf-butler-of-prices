@@ -18,7 +18,7 @@ use wfinfo_discord::{
     routes::CreateGlobalApplicationCommand,
     DiscordRestClient,
 };
-use wfinfo_lib::http::RequestError;
+use wfinfo_http::RequestError;
 
 pub struct SlashCommand {
     pub name: Cow<'static, str>,
@@ -55,28 +55,69 @@ impl SlashCommand {
 
         // Callback
         if let Some(callback) = self.callback.as_ref() {
-            let option_registry =
-                CommandOptionRegistry::new(&root_data.options);
-            callback
-                .invoke(interaction_data.clone(), &root_data, option_registry)
-                .await?;
+            execute_callback(
+                interaction_data.clone(),
+                &root_data,
+                &root_data.options,
+                callback.as_ref(),
+            )
+            .await?;
         }
 
         // Options
-        for invoke_option in root_data.options.iter() {
-            self.options
-                .iter()
-                .find(|option| option.name == invoke_option.name)
-                .ok_or_else(|| {
-                    HandleInteractionError::UnknownOption(
-                        invoke_option.name.clone(),
-                    )
-                })?
-                .handle(interaction_data.clone(), &root_data, &invoke_option)
-                .await?;
-        }
+        handle_options(
+            interaction_data.clone(),
+            &root_data,
+            &self.options,
+            root_data.options.iter(),
+        )
+        .await?;
 
         Ok(())
+    }
+}
+
+async fn execute_callback<C: ?Sized + CommandCallback>(
+    interaction_data: Arc<InteractionData>,
+    root_data: &SlashCommandData,
+    option_data: &[ApplicationCommandInteractionDataOption],
+    callback: &C,
+) -> Result<(), HandleInteractionError> {
+    let option_registry = CommandOptionRegistry::new(option_data);
+    callback
+        .invoke(interaction_data, &root_data, option_registry)
+        .await?;
+    Ok(())
+}
+
+async fn handle_options(
+    interaction_data: Arc<InteractionData>,
+    root_data: &SlashCommandData,
+    options: &[CommandOption],
+    option_data: impl IntoIterator<Item = &ApplicationCommandInteractionDataOption>,
+) -> Result<(), HandleInteractionError> {
+    for option_data in option_data.into_iter() {
+        options
+            .iter()
+            .find(|option| option.name == option_data.name)
+            .ok_or_else(|| {
+                HandleInteractionError::UnknownOption(option_data.name.clone())
+            })?
+            .handle(interaction_data.clone(), &root_data, &option_data)
+            .await?;
+    }
+
+    Ok(())
+}
+
+impl Debug for SlashCommand {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SlashCommand")
+            .field("name", &self.name)
+            .field("description", &self.description)
+            .field("options", &self.options)
+            .field("default_permission", &self.default_permission)
+            .finish_non_exhaustive()
     }
 }
 
@@ -140,6 +181,8 @@ pub enum HandleInteractionError {
     OptionError(GetOptionError),
     #[display(fmt = "invalid options: '{}'", _0)]
     InvalidData(#[error(ignore)] String),
+    #[display(fmt = "missing input options from interaction data")]
+    MissingOptions,
     #[display(fmt = "{}", _0)]
     Custom(#[error(ignore)] anyhow::Error),
 }
@@ -221,65 +264,66 @@ impl CommandOption {
         &self,
         interaction_data: Arc<InteractionData>,
         root_data: &SlashCommandData,
-        command_data: &ApplicationCommandInteractionDataOption,
+        invoke_data: &ApplicationCommandInteractionDataOption,
     ) -> Result<(), HandleInteractionError> {
         match &self.kind {
             CommandOptionType::SubCommand {
                 options,
                 callback: Some(ref callback),
-            } => match &command_data.kind {
-                ApplicationCommandInteractionDataOptionType::SubCommand {
-                    options: invoke_options,
-                } => {
-                    // Options
-                    for invoke_option in root_data.options.iter() {
-                        options
-                            .iter()
-                            .find(|option| option.name == invoke_option.name)
-                            .ok_or_else(|| {
-                                HandleInteractionError::UnknownOption(
-                                    invoke_option.name.clone(),
-                                )
-                            })?
-                            .handle(
-                                interaction_data.clone(),
-                                &root_data,
-                                &invoke_option,
-                            )
-                            .await?;
-                    }
-
-                    // Callback
-                    callback
-                        .invoke(
-                            interaction_data.clone(),
-                            root_data,
-                            CommandOptionRegistry::new(invoke_options),
-                        )
-                        .await
-                }
-                _ => Err(HandleInteractionError::InvalidData(
-                    self.name.to_string(),
-                )),
-            },
-            CommandOptionType::SubCommandGroup { options } => {
+            } => {
                 // Options
-                for invoke_option in root_data.options.iter() {
-                    options
-                        .iter()
-                        .find(|option| option.name == invoke_option.name)
-                        .ok_or_else(|| {
-                            HandleInteractionError::UnknownOption(
-                                invoke_option.name.clone(),
-                            )
-                        })?
-                        .handle(
-                            interaction_data.clone(),
-                            &root_data,
-                            &invoke_option,
-                        )
-                        .await?;
-                }
+                let option_data =
+                    match &invoke_data.kind {
+                        ApplicationCommandInteractionDataOptionType::SubCommand {
+                            options,
+                        } => options
+                            .as_ref()
+                            .map(Vec::as_slice)
+                            .unwrap_or(&[]),
+                    _ => return Err(HandleInteractionError::InvalidData(
+                        self.name.to_string(),
+                    ))
+                };
+                handle_options(
+                    interaction_data.clone(),
+                    &root_data,
+                    options,
+                    option_data,
+                )
+                .await?;
+
+                // Callback
+                execute_callback(
+                    interaction_data.clone(),
+                    root_data,
+                    option_data,
+                    callback.as_ref(),
+                )
+                .await?;
+
+                Ok(())
+            }
+            CommandOptionType::SubCommandGroup { options } => {
+                let option_data = match &invoke_data.kind {
+                    ApplicationCommandInteractionDataOptionType::SubCommandGroup {
+                        options
+                    } => options
+                        .as_ref()
+                        .map(Vec::as_slice)
+                        .unwrap_or(&[]),
+                    _ => return Err(HandleInteractionError::InvalidData(
+                        self.name.to_string(),
+                    ))
+                };
+
+                // Options
+                handle_options(
+                    interaction_data.clone(),
+                    &root_data,
+                    options,
+                    option_data,
+                )
+                .await?;
 
                 Ok(())
             }
@@ -456,22 +500,31 @@ impl<'a> CommandOptionRegistry<'a> {
         &self,
         name: &str,
     ) -> Result<T, GetOptionError> {
+        self.get_optional_option(name).and_then(|inner| {
+            inner.ok_or_else(|| GetOptionError::MissingOption(name.to_string()))
+        })
+    }
+
+    pub fn get_optional_option<T: FromOption<'a>>(
+        &self,
+        name: &str,
+    ) -> Result<Option<T>, GetOptionError> {
         self.options
             .iter()
             .find(|option| option.name == name)
-            .ok_or(GetOptionError::MissingOption)
-            .and_then(|option| {
+            .map(|option| {
                 T::from_option(option)
                     .map_err(GetOptionError::InvalidOptionValue)
             })
+            .transpose()
     }
 }
 
 #[derive(Debug, Display, Error)]
 #[non_exhaustive]
 pub enum GetOptionError {
-    #[display(fmt = "option not found")]
-    MissingOption,
+    #[display(fmt = "option not found: '{}'", _0)]
+    MissingOption(#[error(ignore)] String),
     #[display(fmt = "invalid option")]
     InvalidOptionValue(FromOptionError),
     #[display(fmt = "{}", _0)]

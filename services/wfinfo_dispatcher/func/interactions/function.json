@@ -17,8 +17,8 @@
       "type": "serviceBus",
       "direction": "out",
       "name": "message",
-      "queueName": "interactions",
-      "connection": "INTERACTIONS_QUEUE"
+      "queueName": "%INTERACTIONS_QUEUE%",
+      "connection": "SERVICE_BUS"
     }
   ]
 }

@@ -1,17 +1,17 @@
-use crate::{controllers::commands_service, models::Config};
+use crate::{
+    controllers::{commands_service, interactions_service},
+    models::Config,
+};
 use actix_web::{middleware::Logger, web::Data, App, HttpServer};
 use anyhow::Context;
+use reqwest::Client;
 use std::{net::Ipv4Addr, sync::Arc, time::Duration};
 use tokio::sync::RwLock;
 use tracing::instrument;
 use wfinfo_commands::CommandRegistry;
 use wfinfo_discord::DiscordRestClient;
-use wfinfo_lib::reqwest::Client;
-use wfinfo_logic::{
-    commands::{admin_command, pc_command},
-    services::WarframeItemService,
-};
-use wfinfo_wm::WarframeMarketRestClient;
+use wfinfo_logic::{commands::pc_command, services::WarframeItemService};
+use wfinfo_wm::WmRestClient;
 
 #[instrument]
 pub async fn start() -> anyhow::Result<()> {
@@ -31,26 +31,19 @@ pub async fn start() -> anyhow::Result<()> {
         config.client_id,
         Arc::new(std::mem::take(&mut config.client_secret)),
     );
-    let wm_client = WarframeMarketRestClient::new(raw_client.clone());
+    let wm_client = WmRestClient::new(raw_client.clone());
     let item_service = WarframeItemService::new(wm_client.clone())
         .await
         .context("error creating warframe item service")?;
 
     // Create command registry
     let lazy_command_registry = Arc::new(RwLock::new(None));
-    let command_registry = CommandRegistry::new(vec![
-        pc_command(
-            discord_client.clone(),
-            wm_client.clone(),
-            item_service.clone(),
-            config.app_id,
-        ),
-        admin_command(
-            discord_client.clone(),
-            lazy_command_registry.clone(),
-            config.app_id,
-        ),
-    ]);
+    let command_registry = CommandRegistry::new(vec![pc_command(
+        discord_client.clone(),
+        wm_client.clone(),
+        item_service.clone(),
+        config.app_id,
+    )]);
     let _ = lazy_command_registry
         .write()
         .await
@@ -68,6 +61,7 @@ pub async fn start() -> anyhow::Result<()> {
             .app_data(Data::new(config.clone()))
             .app_data(Data::new(item_service.clone()))
             .app_data(Data::from(command_registry.clone()))
+            .service(interactions_service())
             .service(commands_service())
             .wrap(logger)
     })

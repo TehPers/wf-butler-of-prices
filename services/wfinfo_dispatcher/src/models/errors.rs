@@ -89,7 +89,7 @@ impl ResponseError for InteractionError {
 
 #[derive(Debug, Display)]
 pub enum AdminCommandError {
-    #[display(fmt = "{}", message)]
+    #[display(fmt = "{message}")]
     BadRequest { message: Cow<'static, str> },
     #[display(fmt = "internal server error")]
     InternalServerError,

@@ -1,11 +1,15 @@
-use anyhow::anyhow;
+use anyhow::{bail, Context};
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLock;
 use wfinfo_commands::{
-    create_callback, CommandBuilder, CommandRegistry, HandleInteractionError,
+    create_callback, CommandBuilder, CommandRegistry, InteractionData,
     SlashCommand,
 };
-use wfinfo_discord::{models::Snowflake, DiscordRestClient};
+use wfinfo_discord::{
+    models::{CreateWebhookMessage, Snowflake},
+    routes::CreateFollowupMessage,
+    DiscordRestClient,
+};
 
 pub fn admin_command(
     discord_client: DiscordRestClient,
@@ -15,7 +19,7 @@ pub fn admin_command(
     CommandBuilder::new()
         .name("admin")
         .description("Admin commands")
-        .default_permission(false)
+        .default_permission(true)
         .subcommand_group_option(|builder| {
             builder.name("commands")
                 .description("Commands relating to command management")
@@ -28,8 +32,9 @@ pub fn admin_command(
                                 command_registry: Arc<RwLock<Option<Weak<CommandRegistry>>>> = command_registry.clone(),
                                 app_id: Snowflake = app_id,
                             },
-                            handler: async |_, _, _| {
+                            handler: async |interaction_data, _, _| {
                                 reset_commands(
+                                    interaction_data,
                                     discord_client.clone(),
                                     command_registry.clone(),
                                     *app_id,
@@ -37,31 +42,44 @@ pub fn admin_command(
                                 .await
                             }
                         })
-                        .build()
                 })
-                .build()
         })
         .build()
 }
 
 async fn reset_commands(
+    interaction_data: Arc<InteractionData>,
     discord_client: DiscordRestClient,
     command_registry: Arc<RwLock<Option<Weak<CommandRegistry>>>>,
     app_id: Snowflake,
-) -> Result<(), HandleInteractionError> {
+) -> anyhow::Result<()> {
     let command_registry = command_registry.read().await;
     let command_registry = match command_registry.as_ref() {
-        None => Err(anyhow!("command registry not set"))?,
+        None => bail!("command registry not set"),
         Some(command_registry) => command_registry,
     };
     let command_registry = match command_registry.upgrade() {
-        None => Err(anyhow!("command registry is already dropped"))?,
+        None => bail!("command registry is already dropped"),
         Some(command_registry) => command_registry,
     };
 
     command_registry
         .register_commands(&discord_client, app_id)
-        .await?;
+        .await
+        .context("error registering commands")?;
+
+    // Send response
+    CreateFollowupMessage::execute(
+        &discord_client,
+        app_id,
+        interaction_data.token.clone(),
+        CreateWebhookMessage {
+            content: Some("Done!".into()),
+            ..Default::default()
+        },
+    )
+    .await
+    .context("error creating response")?;
 
     Ok(())
 }

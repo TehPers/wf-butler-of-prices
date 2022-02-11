@@ -1,20 +1,24 @@
-use crate::models::{
-    ItemOrdersPayload, ItemPayload, ItemShort, ItemsPayload, PayloadResponse,
-    Platform,
+use crate::{
+    middleware::{AsCacheInfo, CacheInfo},
+    models::{
+        ItemOrdersPayload, ItemPayload, ItemShort, ItemsPayload,
+        PayloadResponse, Platform,
+    },
 };
-use chrono::Duration;
 use http::HeaderValue;
-use wfinfo_lib::{reqwest::Method, routes};
+use reqwest::Method;
+use std::time::Duration;
+use wfinfo_http::routes;
 
 #[derive(Clone, Debug, Hash)]
-pub struct RouteInfo {
+pub struct WmRouteInfo {
     pub bucket: Option<CacheBucket>,
     pub cache_time: Option<Duration>,
 }
 
-impl RouteInfo {
+impl WmRouteInfo {
     pub fn new_uncached() -> Self {
-        RouteInfo {
+        WmRouteInfo {
             bucket: None,
             cache_time: None,
         }
@@ -24,10 +28,30 @@ impl RouteInfo {
         bucket: CacheBucket,
         cache_time: Option<Duration>,
     ) -> Self {
-        RouteInfo {
+        WmRouteInfo {
             bucket: Some(bucket),
             cache_time,
         }
+    }
+}
+
+impl AsCacheInfo for WmRouteInfo {
+    fn cache_info(&self) -> Option<CacheInfo<'_>> {
+        self.bucket
+            .as_ref()
+            .zip(self.cache_time)
+            .map(|(bucket, cache_time)| {
+                let values: String = bucket.values.join(":");
+                let bucket = format!(
+                    "wf_butler:cached:wm:{route}:{method}:{values}",
+                    route = bucket.route,
+                    method = bucket.method
+                );
+                CacheInfo {
+                    bucket: bucket.into(),
+                    expiry_secs: cache_time.as_secs(),
+                }
+            })
     }
 }
 
@@ -38,9 +62,9 @@ pub struct CacheBucket {
     pub values: Vec<String>,
 }
 
-const MINUTE: i64 = 60;
-const HOUR: i64 = MINUTE * 60;
-const DAY: i64 = HOUR * 24;
+const MINUTE: u64 = 60;
+const HOUR: u64 = MINUTE * 60;
+const DAY: u64 = HOUR * 24;
 
 pub const PLATFORM_HEADER: &'static str = "platform";
 
@@ -48,31 +72,32 @@ routes! {
     (
         GetItems {},
         method = GET "/items",
-        info = |method, route| -> RouteInfo {
-            RouteInfo::new_cached(
+        info = |method, route| -> WmRouteInfo {
+            WmRouteInfo::new_cached(
                 CacheBucket {
                     method,
                     route,
                     values: vec![],
                 },
-                Some(Duration::seconds(DAY)),
+                Some(Duration::from_secs(DAY)),
             )
         },
-        helper = PayloadResponse<ItemsPayload<ItemShort>>,
+        response = [json] PayloadResponse<ItemsPayload<ItemShort>>,
     ),
     (
-        GetItem { url_name: &'s str },
-        generics = ['s],
-        extra = { platform: Platform },
+        GetItem {
+            url_name: String,
+            platform: Platform,
+        },
         method = GET "/items/{url_name}",
-        info = |method, route| -> RouteInfo {
-            RouteInfo::new_cached(
+        info = |method, route| -> WmRouteInfo {
+            WmRouteInfo::new_cached(
                 CacheBucket {
                     method,
                     route,
-                    values: vec![url_name.to_string()],
+                    values: vec![url_name.clone()],
                 },
-                Some(Duration::seconds(DAY)),
+                Some(Duration::from_secs(DAY)),
             )
         },
         processor = |req| {
@@ -81,115 +106,120 @@ routes! {
                 HeaderValue::from_static(platform.name()),
             )
         },
-        helper = PayloadResponse<ItemPayload>,
+        response = [json] PayloadResponse<ItemPayload>,
     ),
     (
-        GetItemOrders { url_name: &'s str },
-        generics = ['s],
-        extra = { platform: Platform },
+        GetItemOrders {
+            url_name: String,
+            platform: Option<Platform>,
+        },
         method = GET "/items/{url_name}/orders",
-        info = |method, route| -> RouteInfo {
-            RouteInfo::new_cached(
+        info = |method, route| -> WmRouteInfo {
+            WmRouteInfo::new_cached(
                 CacheBucket {
                     method,
                     route,
-                    values: vec![url_name.to_string()],
+                    values: vec![url_name.clone(), format!("{:?}", platform)],
                 },
-                Some(Duration::seconds(HOUR)),
+                Some(Duration::from_secs(HOUR)),
             )
         },
         processor = |req| {
-            req
-                .query(&[("include", "item")])
-                .header("platform", HeaderValue::from_static(match platform {
+            let req = req.query(&[("include", "item")]);
+            let req = match platform {
+                Some(platform) => req.header("platform", HeaderValue::from_static(match platform {
                     Platform::XBox => "xbox",
                     Platform::PC => "pc",
                     Platform::PS4 => "ps4",
                     Platform::Switch => "switch",
-                }))
+                })),
+                None => req,
+            };
+
+            req
         },
-        helper = PayloadResponse<ItemOrdersPayload, ItemPayload>,
+        response = [json] PayloadResponse<ItemOrdersPayload, ItemPayload>,
     ),
     // Liches
     (
         GetLichWeapons {},
         method = GET "/lich/weapons",
-        info = |method, route| -> RouteInfo {
-            RouteInfo::new_cached(
+        info = |method, route| -> WmRouteInfo {
+            WmRouteInfo::new_cached(
                 CacheBucket {
                     method,
                     route,
                     values: vec![],
                 },
-                Some(Duration::seconds(DAY)),
+                Some(Duration::from_secs(DAY)),
             )
         },
         // TODO
-        helper = PayloadResponse<()>,
+        response = [json] PayloadResponse<()>,
     ),
     (
         GetLichEphemeras {},
         method = GET "/lich/ephemeras",
-        info = |method, route| -> RouteInfo {
-            RouteInfo::new_cached(
+        info = |method, route| -> WmRouteInfo {
+            WmRouteInfo::new_cached(
                 CacheBucket {
                     method,
                     route,
                     values: vec![],
                 },
-                Some(Duration::seconds(DAY)),
+                Some(Duration::from_secs(DAY)),
             )
         },
         // TODO
-        helper = PayloadResponse<()>,
+        response = [json] PayloadResponse<()>,
     ),
     (
         GetLichQuirks {},
         method = GET "/lich/quirks",
-        info = |method, route| -> RouteInfo {
-            RouteInfo::new_cached(
+        info = |method, route| -> WmRouteInfo {
+            WmRouteInfo::new_cached(
                 CacheBucket {
                     method,
                     route,
                     values: vec![],
                 },
-                Some(Duration::seconds(DAY)),
+                Some(Duration::from_secs(DAY)),
             )
         },
         // TODO
-        helper = PayloadResponse<()>,
+        response = [json] PayloadResponse<()>,
     ),
     // Rivens
     (
         GetRivenItems {},
         method = GET "/rivens/items",
-        info = |method, route| -> RouteInfo {
-            RouteInfo::new_cached(
+        info = |method, route| -> WmRouteInfo {
+            WmRouteInfo::new_cached(
                 CacheBucket {
                     method,
                     route,
                     values: vec![],
                 },
-                Some(Duration::seconds(DAY)),
+                Some(Duration::from_secs(DAY)),
             )
         },
         // TODO
-        helper = PayloadResponse<()>,
+        response = [json] PayloadResponse<()>,
     ),
     (
         GetRivenAttributes {},
         method = GET "/rivens/attributes",
-        info = |method, route| -> RouteInfo {
-            RouteInfo::new_cached(
+        info = |method, route| -> WmRouteInfo {
+            WmRouteInfo::new_cached(
                 CacheBucket {
                     method,
                     route,
                     values: vec![],
                 },
-                Some(Duration::seconds(DAY)),
+                Some(Duration::from_secs(DAY)),
             )
         },
         // TODO
-        helper = PayloadResponse<()>,
+        response = [json] PayloadResponse<()>,
     ),
 }

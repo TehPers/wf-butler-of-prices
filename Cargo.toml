@@ -1,5 +1,2 @@
 [workspace]
 members = ["lib/*", "services/*"]
-
-[patch.crates-io]
-reqwest-middleware = { git = "https://github.com/TehPers/reqwest-middleware", branch = "send-with-extensions" }

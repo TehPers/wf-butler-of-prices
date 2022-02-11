@@ -182,7 +182,6 @@ pub struct ApplicationCommandOptionChoice<T> {
     /// 1-100 character choice name.
     pub name: String,
     /// Value of the choice, up to 100 characters if string.
-    #[serde(flatten)]
     pub value: T,
 }
 
@@ -334,10 +333,10 @@ serde_inner_enum! {
     #[derive(Clone, Debug)]
     pub enum ApplicationCommandInteractionDataOptionType = "type" {
         SubCommand = 1 {
-            options: Vec<ApplicationCommandInteractionDataOption>,
+            [?] options: Option<Vec<ApplicationCommandInteractionDataOption>>,
         },
         SubCommandGroup = 2 {
-            options: Vec<ApplicationCommandInteractionDataOption>,
+            [?] options: Option<Vec<ApplicationCommandInteractionDataOption>>,
         },
         String = 3 {
             value: String,

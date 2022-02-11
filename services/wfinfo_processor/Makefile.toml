@@ -2,3 +2,4 @@ extend = "../../Makefile-services.toml"
 
 [env]
 BINARY_NAME = "wfinfo_processor"
+FA_NAME = "${PROCESSOR_FA_NAME}"

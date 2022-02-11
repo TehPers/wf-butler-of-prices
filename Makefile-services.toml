@@ -21,7 +21,7 @@ cp "$OUT_PATH" "$FUNC_BIN_DIR/handler"
 [tasks.publish]
 script = '''
 cd func
-func azure functionapp publish $FUNCTION_APP_NAME
+func azure functionapp publish "${FA_NAME}"
 '''
 
 [tasks.run-service]

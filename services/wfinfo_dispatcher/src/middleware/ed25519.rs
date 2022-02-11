@@ -1,9 +1,6 @@
 use crate::models::CheckSignatureError;
 use actix_web::{
-    dev::{
-        Payload, PayloadStream, Service, ServiceRequest, ServiceResponse,
-        Transform,
-    },
+    dev::{Payload, Service, ServiceRequest, ServiceResponse, Transform},
     error::PayloadError,
     http::StatusCode,
     web::Bytes,
@@ -117,8 +114,8 @@ where
                     .to_str()
                     .ok()
                     .and_then(|signature| hex::decode(signature).ok())
-                    .and_then(|signature| signature.try_into().ok())
-                    .map(|signature| Signature::new(signature))
+                    // .and_then(|signature| signature.try_into().ok())
+                    .and_then(|signature| Signature::from_bytes(&signature).ok())
                     .ok_or(CheckSignatureError::InvalidSignature(
                         "<trimmed>".to_string(),
                     ))
@@ -158,8 +155,9 @@ where
             let stream = futures::stream::once(async move {
                 Result::<_, PayloadError>::Ok(payload)
             });
-            let new_payload =
-                Payload::Stream(Box::pin(stream) as PayloadStream);
+            let new_payload = Payload::Stream {
+                payload: Box::pin(stream) as _,
+            };
             req.set_payload(new_payload);
 
             // Execute request

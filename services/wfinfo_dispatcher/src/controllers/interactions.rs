@@ -16,7 +16,7 @@ use wfinfo_azure::functions::{
 };
 use wfinfo_discord::models::{
     Interaction, InteractionApplicationCommandCallbackData,
-    InteractionResponse, InteractionResponseDataFlags, InteractionType,
+    InteractionResponse, InteractionType,
 };
 
 pub const HEADER_SIGNATURE: &'static str = "x-signature-ed25519";
@@ -62,8 +62,7 @@ async fn handle_interaction(
             .join(",");
         let signature = hex::decode(&signature)
             .ok()
-            .and_then(|signature| signature.try_into().ok())
-            .map(|signature| Signature::new(signature))
+            .and_then(|signature| Signature::from_bytes(&signature).ok())
             .ok_or_else(|| CheckSignatureError::InvalidSignature(signature))?;
         let message = format!("{}{}", timestamp, input.data.request.body);
         config

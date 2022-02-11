@@ -1,47 +1,51 @@
-use crate::models::CommandError;
+use crate::models::{AdminCommand, Config};
 use actix_web::{
     dev::HttpServiceFactory,
+    error::ErrorInternalServerError,
+    http::StatusCode,
     post,
     web::{scope, Data, Json},
 };
-use anyhow::Context;
-use serde::{Deserialize, Serialize};
-use tracing::{error, instrument};
-use wfinfo_azure::functions::{FunctionsInput, FunctionsOutput};
+use serde::Deserialize;
+use std::collections::HashMap;
+use tracing::instrument;
+use wfinfo_azure::functions::{
+    FunctionsInput, FunctionsOutput, HttpInput, HttpOutput,
+};
 use wfinfo_commands::CommandRegistry;
-use wfinfo_discord::models::Interaction;
+use wfinfo_discord::DiscordRestClient;
 
 pub fn commands_service() -> impl HttpServiceFactory {
     scope("/commands").service(handle_command)
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Input {
-    pub command: String,
+    pub command: HttpInput<AdminCommand>,
 }
 
 #[post("")]
-#[instrument(skip(input, command_registry))]
+#[instrument(skip(input, command_registry, discord_client, config))]
 async fn handle_command(
     input: Json<FunctionsInput<Input>>,
     command_registry: Data<CommandRegistry>,
-) -> Result<Json<FunctionsOutput<()>>, CommandError> {
-    let input: String = serde_json::from_str(&input.data.command)
-        .map_err(CommandError::ParseError)?;
-    let input: Interaction =
-        serde_json::from_str(&input).map_err(CommandError::ParseError)?;
-
-    let result = command_registry
-        .handle_interaction(input)
-        .await
-        .context("error handling interaction");
-    if let Err(error) = result {
-        error!("{:?}", error);
+    discord_client: Data<DiscordRestClient>,
+    config: Data<Config>,
+) -> Result<Json<FunctionsOutput<HttpOutput<String>>>, actix_web::Error> {
+    match input.data.command.body {
+        AdminCommand::RegisterCommands => command_registry
+            .register_commands(discord_client.as_ref(), config.app_id)
+            .await
+            .map_err(ErrorInternalServerError)?,
     }
 
     Ok(Json(FunctionsOutput {
-        outputs: (),
+        outputs: HttpOutput {
+            status_code: StatusCode::OK.as_u16(),
+            headers: HashMap::new(),
+            body: "Success!".into(),
+        },
         logs: vec![],
-        return_value: None,
+        return_value: Default::default(),
     }))
 }

@@ -2,3 +2,4 @@ extend = "../../Makefile-services.toml"
 
 [env]
 BINARY_NAME = "wfinfo_dispatcher"
+FA_NAME = "${DISPATCHER_FA_NAME}"

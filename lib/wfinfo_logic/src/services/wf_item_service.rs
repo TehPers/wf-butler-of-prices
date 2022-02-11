@@ -2,41 +2,35 @@ use anyhow::Context;
 use qp_trie::{wrapper::BString, Trie};
 use std::{collections::HashMap, sync::Arc};
 use tracing::{debug, instrument, warn};
-use wfinfo_wm::{
-    models::ItemShort, routes::GetItems, WarframeMarketRestClient,
-};
+use wfinfo_wm::{models::ItemShort, routes::GetItems, WmRestClient};
 
 #[derive(Debug, Clone)]
 pub struct WarframeItemService {
-    wm_client: WarframeMarketRestClient,
-    lookup: Arc<Trie<BString, Arc<String>>>,
+    lookup: Arc<Trie<BString, Arc<str>>>,
 }
 
 impl WarframeItemService {
     #[instrument(skip(wm_client))]
-    pub async fn new(
-        wm_client: WarframeMarketRestClient,
-    ) -> anyhow::Result<Self> {
+    pub async fn new(wm_client: WmRestClient) -> anyhow::Result<Self> {
         let lookup = build_lookup(&wm_client)
             .await
             .context("error building lookup table")?;
         debug!(entries=?lookup.count(), "created lookup trie for item queries");
 
-        Ok(Self {
-            wm_client,
+        Ok(WarframeItemService {
             lookup: Arc::new(lookup),
         })
     }
 
-    pub fn get_url_name(&self, query: &str) -> Option<Arc<String>> {
+    pub fn get_url_name(&self, query: &str) -> Option<Arc<str>> {
         self.lookup.get_str(query).cloned()
     }
 }
 
 #[instrument(skip(wm_client))]
 async fn build_lookup(
-    wm_client: &WarframeMarketRestClient,
-) -> anyhow::Result<Trie<BString, Arc<String>>> {
+    wm_client: &WmRestClient,
+) -> anyhow::Result<Trie<BString, Arc<str>>> {
     // Get searchable items from w.m
     let items = GetItems::execute(wm_client)
         .await
@@ -57,7 +51,7 @@ async fn build_lookup(
     abbrvs.insert("relic", vec![""]);
 
     // Create trie
-    let trie: Trie<BString, Arc<String>> = items
+    let trie = items
         .payload
         .items
         .into_iter()
@@ -68,7 +62,7 @@ async fn build_lookup(
                 ..
             } = item;
 
-            let url_name = Arc::new(url_name);
+            let url_name: Arc<str> = url_name.into_boxed_str().into();
             let words = item_name.split_whitespace();
             let word_choices: Vec<Vec<_>> = words
                 .into_iter()
@@ -92,11 +86,7 @@ async fn build_lookup(
         })
         .fold(Trie::new(), |mut trie, (key, value)| {
             if let Some(prev) = trie.insert(key.clone(), value) {
-                warn!(
-                    "duplicate key '{}' for '{}' in trie",
-                    String::from(key),
-                    prev
-                );
+                warn!("duplicate key {key:?} for {prev:?} in trie");
             }
             trie
         });

@@ -42,19 +42,25 @@ pub struct ItemOrder {
     pub last_update: DateTime<FixedOffset>,
     pub user: UserShort,
     #[serde(flatten)]
-    pub rank: Option<ItemRank>,
+    pub rank: ItemRank,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ItemRank {
-    ModOrArcane { mod_rank: u8 },
-    Relic { subtype: RelicSubtype },
+    ModOrArcane {
+        mod_rank: u8,
+    },
+    Relic {
+        #[serde(rename = "subtype")]
+        refinement: RelicRefinement,
+    },
+    Item {},
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum RelicSubtype {
+pub enum RelicRefinement {
     Intact,
     Exceptional,
     Flawless,
@@ -75,8 +81,9 @@ pub struct ItemFull {
     pub thumb: String,
     #[serde(default)]
     pub sub_icon: Option<String>,
-    // #[serde(alias = "max_rank")]
-    // pub mod_max_rank: u8,
+    pub tags: Vec<String>,
+    #[serde(flatten)]
+    pub item_type: ItemType,
     #[serde(default)]
     pub ducats: Option<u16>,
     #[serde(default)]
@@ -89,6 +96,14 @@ pub struct ItemFull {
     pub trading_tax: Option<u32>,
     pub en: LangInItem,
     // TODO: there are other languages too
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ItemType {
+    ModOrArcane { mod_max_rank: u8 },
+    Relic { subtypes: Vec<RelicRefinement> },
+    Item {},
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]

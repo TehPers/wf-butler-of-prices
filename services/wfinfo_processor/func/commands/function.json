@@ -2,11 +2,11 @@
   "$schema": "http://json.schemastore.org/function",
   "bindings": [
     {
-      "queueName": "interactions",
-      "connection": "INTERACTIONS_QUEUE",
+      "authLevel": "function",
+      "type": "httpTrigger",
       "direction": "in",
       "name": "command",
-      "type": "serviceBusTrigger"
+      "methods": ["post"]
     }
   ]
 }

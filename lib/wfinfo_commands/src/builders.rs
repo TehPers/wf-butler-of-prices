@@ -201,17 +201,22 @@ macro_rules! option_builder {
     } => {
         impl<$($req_ty_name),*> $name<$($req_ty_name),*> {
             #[inline]
-            pub fn option(self, $option: CommandOption) -> Self {
+            pub fn option(self, option: impl Into<CommandOption>) -> Self {
                 let $self = self;
+                let $option = option.into();
                 $set_opt
             }
 
             $(
                 #[inline]
-                pub fn $opt_fn(
+                pub fn $opt_fn<R, F>(
                     self,
-                    builder: impl FnOnce($builder_ty) -> CommandOption,
-                ) -> Self {
+                    builder: F,
+                ) -> Self
+                where
+                    R: Into<CommandOption>,
+                    F: FnOnce($builder_ty) -> R
+                {
                     self.option(builder(Default::default()))
                 }
             )*
@@ -247,7 +252,8 @@ macro_rules! create_callback {
                     $(ref $field_name,)*
                 } = self;
 
-                $handler
+                $handler?;
+                Ok(())
             }
         }
 
@@ -417,7 +423,8 @@ builder! {
     },
     optional = {
         required: bool,
-        choices: Vec<Choice<Cow<'static, str>>> as impl IntoIterator<Item = Choice<Cow<'static, str>>> = choices.into_iter().collect(),
+        // TODO
+        choices: Vec<Choice<Cow<'static, str>>>, // as impl IntoIterator<Item = Choice<Cow<'static, str>>> = choices.into_iter().collect(),
     },
     extra = {},
     ready = ReadyStringOptionBuilder,
@@ -441,7 +448,8 @@ builder! {
     },
     optional = {
         required: bool,
-        choices: Vec<Choice<i64>> as impl IntoIterator<Item = Choice<i64>> = choices.into_iter().collect(),
+        // TODO: rust-analyzer panics if I uncomment the code on the next line
+        choices: Vec<Choice<i64>>, // as impl IntoIterator<Item = Choice<i64>> = choices.into_iter().collect(),
     },
     extra = {},
     ready = ReadyIntegerOptionBuilder,
@@ -465,7 +473,8 @@ builder! {
     },
     optional = {
         required: bool,
-        choices: Vec<Choice<f64>> as impl IntoIterator<Item = Choice<f64>> = choices.into_iter().collect(),
+        // TODO
+        choices: Vec<Choice<f64>>, // as impl IntoIterator<Item = Choice<f64>> = choices.into_iter().collect(),
     },
     extra = {},
     ready = ReadyNumberOptionBuilder,
