@@ -1,0 +1,68 @@
+name: Deploy (dev)
+
+on:
+  push:
+    branches: [dev, deploy-dev]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install musl-gcc and dependencies
+        run: |-
+          sudo apt-get update
+          sudo apt-get upgrade -y
+          sudo apt-get install -y musl-tools
+      - name: Setup toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: x86_64-unknown-linux-musl
+          components: rustfmt, clippy
+          override: true
+      - name: Cache build artifacts
+        uses: Swatinem/rust-cache@v1
+        with:
+          sharedKey: dev-build
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --verbose
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        service:
+          - dispatcher
+          - processor
+        service_path:
+          - services/wfinfo_dispatcher
+          - services/wfinfo_processor
+        fa_name:
+          - ${{ secrets.DISPATCHER_FA_NAME }}
+          - ${{ secrets.PROCESSOR_FA_NAME }}
+        fa_publish_profile:
+          - ${{ secrets.DISPATCHER_FA_PUBLISH_PROFILE }}
+          - ${{ secrets.PROCESSOR_FA_PUBLISH_PROFILE }}
+    steps:
+      - name: Prepare ${{ matrix.service }}
+        run: |-
+          cd ${{ matrix.service_path }}
+          mkdir -p ./func/bin/hander
+          cp ./target/cargo/x86_64-unknown-linux-musl/release/wfinfo_${{ matrix.service }} ./func/bin/handler
+      - name: Deploy ${{ matrix.service }}
+        uses: Azure/functions-action@v1
+        id: deploy_${{ matrix.service }}
+        with:
+          app-name: ${{ matrix.fa_name }}
+          package: ${{ matrix.service_path }}/func
+          publish-profile: ${{ matrix.fa_publish_profile }}
