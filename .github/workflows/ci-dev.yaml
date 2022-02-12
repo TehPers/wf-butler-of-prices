@@ -28,6 +28,8 @@ jobs:
         target: x86_64-unknown-linux-musl
         components: rustfmt, clippy
         override: true
+    - name: Cache build artifacts
+      uses: Swatinem/rust-cache@v1
     - name: Build
       uses: actions-rs/cargo@v1
       with:
@@ -67,6 +69,8 @@ jobs:
         toolchain: stable
         components: clippy
         override: true
+    - name: Cache build artifacts
+      uses: Swatinem/rust-cache@v1
     - name: Run clippy
       uses: actions-rs/cargo@v1
       with:
