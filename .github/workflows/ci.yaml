@@ -1,10 +1,10 @@
-name: CI (dev)
+name: CI
 
 on:
   push:
-    branches: [ dev, ci ]
+    branches: [ dev ]
   pull_request:
-    branches: [ dev, ci ]
+    branches: [ dev ]
 
 env:
   CARGO_TERM_COLOR: always
