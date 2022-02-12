@@ -47,12 +47,12 @@ jobs:
         service_path:
           - services/wfinfo_dispatcher
           - services/wfinfo_processor
-        fa_name:
-          - ${{ secrets.DISPATCHER_FA_NAME }}
-          - ${{ secrets.PROCESSOR_FA_NAME }}
-        fa_publish_profile:
-          - ${{ secrets.DISPATCHER_FA_PUBLISH_PROFILE }}
-          - ${{ secrets.PROCESSOR_FA_PUBLISH_PROFILE }}
+        fa_name_var:
+          - DISPATCHER_FA_NAME
+          - PROCESSOR_FA_NAME
+        fa_publish_profile_var:
+          - DISPATCHER_FA_PUBLISH_PROFILE
+          - PROCESSOR_FA_PUBLISH_PROFILE
     steps:
       - name: Prepare ${{ matrix.service }}
         run: |-
@@ -63,6 +63,6 @@ jobs:
         uses: Azure/functions-action@v1
         id: deploy_${{ matrix.service }}
         with:
-          app-name: ${{ matrix.fa_name }}
+          app-name: ${{ secrets[matrix.fa_name_var] }}
           package: ${{ matrix.service_path }}/func
-          publish-profile: ${{ matrix.fa_publish_profile }}
+          publish-profile: ${{ secrets[matrix.fa_publish_profile_var] }}
