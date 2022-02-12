@@ -29,4 +29,4 @@ features = ["display", "from", "into", "deref", "deref_mut"]
 [dependencies.ed25519-dalek]
 version = "1"
 default-features = false
-features = ["std", "u64_backend", "serde", "nightly"]
+features = ["std", "u64_backend", "serde"]

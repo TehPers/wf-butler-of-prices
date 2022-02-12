@@ -218,7 +218,7 @@ impl<'de> Deserialize<'de> for ClientSecret {
 
 #[derive(Debug, Display, Error)]
 #[non_exhaustive]
-enum AuthenticationError {
+pub enum AuthenticationError {
     #[display(fmt = "error getting access token")]
     ErrorGettingAccessToken(RequestError),
     #[display(fmt = "missing Discord API route info")]
