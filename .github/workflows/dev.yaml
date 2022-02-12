@@ -41,23 +41,28 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        service:
-          - dispatcher
-          - processor
-        service_path:
-          - services/wfinfo_dispatcher
-          - services/wfinfo_processor
-        fa_name_var:
-          - DISPATCHER_FA_NAME
-          - PROCESSOR_FA_NAME
-        fa_publish_profile_var:
-          - DISPATCHER_FA_PUBLISH_PROFILE
-          - PROCESSOR_FA_PUBLISH_PROFILE
+        service: [dispatcher, processor]
+        include:
+          - service: dispatcher
+            service_path: services/wfinfo_dispatcher
+            fa_name_var: DISPATCHER_FA_NAME
+            fa_publish_profile_var: DISPATCHER_FA_PUBLISH_PROFILE
+          - service: processor
+            service_path: services/wfinfo_processor
+            fa_name_var: PROCESSOR_FA_NAME
+            fa_publish_profile_var: PROCESSOR_FA_PUBLISH_PROFILE
     steps:
       - name: Prepare ${{ matrix.service }}
         run: |-
+          ls -al
           cd ${{ matrix.service_path }}
-          mkdir -p ./func/bin/hander
+          ls -al
+          ls -al ./func
+          mkdir -p ./func/bin
+          ls -al ./target
+          ls -al ./target/cargo
+          ls -al ./target/cargo/x86_64-unknown-linux-musl/
+          ls -al ./target/cargo/x86_64-unknown-linux-musl/release
           cp ./target/cargo/x86_64-unknown-linux-musl/release/wfinfo_${{ matrix.service }} ./func/bin/handler
       - name: Deploy ${{ matrix.service }}
         uses: Azure/functions-action@v1
