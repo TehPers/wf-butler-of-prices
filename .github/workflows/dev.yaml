@@ -24,6 +24,9 @@ jobs:
             package: wfinfo_processor
             fa_name_var: PROCESSOR_FA_NAME
             fa_publish_profile_var: PROCESSOR_FA_PUBLISH_PROFILE
+    env:
+      FA_NAME: ${{ secrets[matrix.fa_name_var] }}
+      FA_PUBLISH_PROFILE: ${{ secrets[matrix.fa_publish_profile_var] }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -57,6 +60,6 @@ jobs:
       - name: Deploy ${{ matrix.service }}
         uses: Azure/functions-action@v1
         with:
-          app-name: ${{ secrets[matrix.fa_name_var] }}
+          app-name: ${{ env.FA_NAME }}
           package: ./services/${{ matrix.package }}/func
-          publish-profile: ${{ secrets[matrix.fa_publish_profile_var] }}
+          publish-profile: ${{ env.FA_PUBLISH_PROFILE }}
