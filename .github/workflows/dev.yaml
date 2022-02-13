@@ -11,6 +11,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: dev
     strategy:
       fail-fast: true
       matrix:
