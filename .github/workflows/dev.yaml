@@ -25,8 +25,14 @@ jobs:
             fa_name_var: PROCESSOR_FA_NAME
             fa_publish_profile_var: PROCESSOR_FA_PUBLISH_PROFILE
     env:
+      SERVICE: ${{ matrix.service }}
+      PACKAGE: ${{ matrix.package }}
+      FA_NAME_VAR: ${{ matrix.fa_name_var }}
+      FA_PUBLISH_PROFILE_VAR: ${{ matrix.fa_publish_profile_var }}
       FA_NAME: ${{ secrets[matrix.fa_name_var] }}
       FA_PUBLISH_PROFILE: ${{ secrets[matrix.fa_publish_profile_var] }}
+      DISPATCHER_FA_NAME: ${{ secrets.DISPATCHER_FA_NAME }}
+      PROCESSOR_FA_NAME: ${{ secrets.PROCESSOR_FA_NAME }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
