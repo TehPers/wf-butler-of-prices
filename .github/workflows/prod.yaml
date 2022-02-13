@@ -13,3 +13,7 @@ jobs:
     uses: ./.github/workflows/deploy.yaml
     with:
       environment: prod
+    secrets:
+      AZURE_RBAC_CREDENTIALS: ${{ secrets.AZURE_RBAC_CREDENTIALS }}
+      DISPATCHER_FA_NAME: ${{ secrets.DISPATCHER_FA_NAME }}
+      PROCESSOR_FA_NAME: ${{ secrets.PROCESSOR_FA_NAME }}

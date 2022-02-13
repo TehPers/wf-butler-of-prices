@@ -6,6 +6,13 @@ on:
       environment:
         type: string
         required: true
+    secrets:
+      AZURE_RBAC_CREDENTIALS:
+        required: true
+      DISPATCHER_FA_NAME:
+        required: true
+      PROCESSOR_FA_NAME:
+        required: true
 
 env:
   CARGO_BUILD_ARGS: --release --verbose
@@ -22,11 +29,9 @@ jobs:
           - service: dispatcher
             package: wfinfo_dispatcher
             fa_name_var: DISPATCHER_FA_NAME
-            fa_publish_profile_var: DISPATCHER_FA_PUBLISH_PROFILE
           - service: processor
             package: wfinfo_processor
             fa_name_var: PROCESSOR_FA_NAME
-            fa_publish_profile_var: PROCESSOR_FA_PUBLISH_PROFILE
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
