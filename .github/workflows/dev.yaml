@@ -75,15 +75,14 @@ jobs:
       - name: Prepare ${{ matrix.service }}
         run: |-
           ls -al
-          cd services/${{ matrix.package }}
-          ls -al
-          ls -al ./func
-          mkdir -p ./func/bin
+          ls -al ./services/${{ matrix.package }}
+          ls -al ./services/${{ matrix.package }}/func
+          mkdir -p ./services/${{ matrix.package }}/func/bin
           ls -al ./target
           ls -al ./target/cargo
           ls -al ./target/cargo/x86_64-unknown-linux-musl/
           ls -al ./target/cargo/x86_64-unknown-linux-musl/release
-          cp ./target/cargo/x86_64-unknown-linux-musl/release/wfinfo_${{ matrix.service }} ./func/bin/handler
+          cp ./target/cargo/x86_64-unknown-linux-musl/release/wfinfo_${{ matrix.service }} ./services/${{ matrix.package }}/func/bin/handler
       - name: Deploy ${{ matrix.service }}
         uses: Azure/functions-action@v1
         with:
