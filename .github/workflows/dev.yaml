@@ -51,14 +51,9 @@ jobs:
           args: -p ${{ matrix.package }} ${{ env.CARGO_BUILD_ARGS }}
       - name: Prepare ${{ matrix.service }}
         run: |-
-          ls -al
-          ls -al ./services/${{ matrix.package }}
-          ls -al ./services/${{ matrix.package }}/func
           mkdir -p ./services/${{ matrix.package }}/func/bin
-          ls -al ./target
-          ls -al ./target/cargo
-          ls -al ./target/cargo/release
           cp ./target/cargo/release/${{ matrix.package }} ./services/${{ matrix.package }}/func/bin/handler
+          echo "\"${{ matrix.fa_name_var }}\""
       - name: Deploy ${{ matrix.service }}
         uses: Azure/functions-action@v1
         with:
