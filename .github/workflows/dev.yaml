@@ -6,6 +6,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_BUILD_ARGS: --release --verbose
 
 jobs:
   build:
@@ -34,7 +35,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --verbose
+          args: $CARGO_BUILD_ARGS
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -44,18 +45,37 @@ jobs:
         service: [dispatcher, processor]
         include:
           - service: dispatcher
-            service_path: services/wfinfo_dispatcher
+            package: wfinfo_dispatcher
             fa_name_var: DISPATCHER_FA_NAME
             fa_publish_profile_var: DISPATCHER_FA_PUBLISH_PROFILE
           - service: processor
-            service_path: services/wfinfo_processor
+            package: wfinfo_processor
             fa_name_var: PROCESSOR_FA_NAME
             fa_publish_profile_var: PROCESSOR_FA_PUBLISH_PROFILE
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: x86_64-unknown-linux-musl
+          components: rustfmt, clippy
+          override: true
+      - name: Restore build cache
+        uses: Swatinem/rust-cache@v1
+        with:
+          sharedKey: dev-build
+      - name: Ensure project is built
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: -p ${{ matrix.package }} $CARGO_BUILD_ARGS
       - name: Prepare ${{ matrix.service }}
         run: |-
           ls -al
-          cd ${{ matrix.service_path }}
+          cd services/${{ matrix.package }}
           ls -al
           ls -al ./func
           mkdir -p ./func/bin
@@ -68,5 +88,5 @@ jobs:
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ secrets[matrix.fa_name_var] }}
-          package: ${{ matrix.service_path }}/func
+          package: services/${{ matrix.package }}/func
           publish-profile: ${{ secrets[matrix.fa_publish_profile_var] }}
