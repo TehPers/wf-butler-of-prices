@@ -35,7 +35,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: $CARGO_BUILD_ARGS
+          args: ${{ env.CARGO_BUILD_ARGS }}
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -71,7 +71,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: -p ${{ matrix.package }} $CARGO_BUILD_ARGS
+          args: -p ${{ matrix.package }} ${{ env.CARGO_BUILD_ARGS }}
       - name: Prepare ${{ matrix.service }}
         run: |-
           ls -al

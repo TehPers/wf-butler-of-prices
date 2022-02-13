@@ -8,6 +8,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_BUILD_ARGS: --release --verbose
+  CARGO_FMT_ARGS: --verbose --check
 
 jobs:
   build:
@@ -36,12 +38,12 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --verbose
+          args: ${{ env.CARGO_BUILD_ARGS }}
       - name: Test
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --verbose
+          args: ${{ env.CARGO_BUILD_ARGS }}
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -58,7 +60,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --check
+          args: ${{ env.CARGO_FMT_ARGS }}
   clippy:
     runs-on: ubuntu-latest
     steps:
@@ -79,4 +81,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --release --tests
+          args: --tests ${{ env.CARGO_BUILD_ARGS }}
