@@ -2,77 +2,83 @@ name: CI
 
 on:
   push:
-    branches: [ dev ]
+    branches: [dev]
   pull_request:
-    branches: [ dev ]
+    branches: [dev]
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_BUILD_ARGS: --release --verbose
+  CARGO_FMT_ARGS: --verbose --check
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-    - name: Install musl-gcc and dependencies
-      run: |-
-        sudo apt-get update
-        sudo apt-get upgrade -y
-        sudo apt-get install -y musl-tools
-    - name: Setup toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        target: x86_64-unknown-linux-musl
-        components: rustfmt, clippy
-        override: true
-    - name: Cache build artifacts
-      uses: Swatinem/rust-cache@v1
-    - name: Build
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --verbose
-    - name: Test
-      uses: actions-rs/cargo@v1
-      with:
-        command: test
-        args: --verbose
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: x86_64-unknown-linux-musl
+          components: rustfmt, clippy
+          override: true
+      - name: Cache build artifacts
+        uses: Swatinem/rust-cache@v1
+        with:
+          sharedKey: ci-build
+      - name: Install musl-gcc and dependencies
+        run: |-
+          sudo apt-get update
+          sudo apt-get upgrade -y
+          sudo apt-get install -y musl-tools
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: ${{ env.CARGO_BUILD_ARGS }}
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: ${{ env.CARGO_BUILD_ARGS }}
   lint:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-    - name: Setup toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: nightly
-        components: rustfmt
-        override: true
-    - name: Run formatter
-      uses: actions-rs/cargo@v1
-      with:
-        command: fmt
-        args: --check
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          components: rustfmt
+          override: true
+      - name: Run formatter
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: ${{ env.CARGO_FMT_ARGS }}
   clippy:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
-    - name: Setup toolchain
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        components: clippy
-        override: true
-    - name: Cache build artifacts
-      uses: Swatinem/rust-cache@v1
-    - name: Run clippy
-      uses: actions-rs/cargo@v1
-      with:
-        command: clippy
-        args: --release --tests
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: clippy
+          override: true
+      - name: Cache build artifacts
+        uses: Swatinem/rust-cache@v1
+        with:
+          sharedKey: ci-clippy
+      - name: Run clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --tests ${{ env.CARGO_BUILD_ARGS }}
