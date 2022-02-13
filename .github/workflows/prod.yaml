@@ -1,14 +1,15 @@
-name: Deploy (dev)
+name: Deploy (prod)
 
 on:
   push:
-    branches: [dev, deploy-prod]
+    branches: [prod]
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_BUILD_ARGS: --release --verbose
 
 jobs:
   deploy:
     uses: ./.github/workflows/deploy.yaml
     with:
-      environment: dev
+      environment: prod
