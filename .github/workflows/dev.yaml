@@ -9,8 +9,21 @@ env:
   CARGO_BUILD_ARGS: --release --verbose
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        service: [dispatcher, processor]
+        include:
+          - service: dispatcher
+            package: wfinfo_dispatcher
+            fa_name_var: DISPATCHER_FA_NAME
+            fa_publish_profile_var: DISPATCHER_FA_PUBLISH_PROFILE
+          - service: processor
+            package: wfinfo_processor
+            fa_name_var: PROCESSOR_FA_NAME
+            fa_publish_profile_var: PROCESSOR_FA_PUBLISH_PROFILE
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -30,44 +43,8 @@ jobs:
       - name: Cache build artifacts
         uses: Swatinem/rust-cache@v1
         with:
-          sharedKey: dev-build
+          sharedKey: dev-build-${{ matrix.service }}
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: ${{ env.CARGO_BUILD_ARGS }}
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: true
-      matrix:
-        service: [dispatcher, processor]
-        include:
-          - service: dispatcher
-            package: wfinfo_dispatcher
-            fa_name_var: DISPATCHER_FA_NAME
-            fa_publish_profile_var: DISPATCHER_FA_PUBLISH_PROFILE
-          - service: processor
-            package: wfinfo_processor
-            fa_name_var: PROCESSOR_FA_NAME
-            fa_publish_profile_var: PROCESSOR_FA_PUBLISH_PROFILE
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Setup toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          target: x86_64-unknown-linux-musl
-          components: rustfmt, clippy
-          override: true
-      - name: Restore build cache
-        uses: Swatinem/rust-cache@v1
-        with:
-          sharedKey: dev-build
-      - name: Ensure project is built
         uses: actions-rs/cargo@v1
         with:
           command: build
@@ -80,12 +57,11 @@ jobs:
           mkdir -p ./services/${{ matrix.package }}/func/bin
           ls -al ./target
           ls -al ./target/cargo
-          ls -al ./target/cargo/x86_64-unknown-linux-musl/
-          ls -al ./target/cargo/x86_64-unknown-linux-musl/release
-          cp ./target/cargo/x86_64-unknown-linux-musl/release/wfinfo_${{ matrix.service }} ./services/${{ matrix.package }}/func/bin/handler
+          ls -al ./target/cargo/release
+          cp ./target/cargo/release/${{ matrix.package }} ./services/${{ matrix.package }}/func/bin/handler
       - name: Deploy ${{ matrix.service }}
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ secrets[matrix.fa_name_var] }}
-          package: services/${{ matrix.package }}/func
+          package: ./services/${{ matrix.package }}/func
           publish-profile: ${{ secrets[matrix.fa_publish_profile_var] }}
