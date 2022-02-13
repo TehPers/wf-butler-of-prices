@@ -28,11 +28,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Install musl-gcc and dependencies
-        run: |-
-          sudo apt-get update
-          sudo apt-get upgrade -y
-          sudo apt-get install -y musl-tools
+      - name: Log into Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_RBAC_CREDENTIALS }}
       - name: Setup toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -45,19 +44,25 @@ jobs:
         uses: Swatinem/rust-cache@v1
         with:
           sharedKey: dev-build-${{ matrix.service }}
-      - name: Build
+      - name: Install musl-gcc and dependencies
+        shell: bash
+        run: |-
+          sudo apt-get update
+          sudo apt-get upgrade -y
+          sudo apt-get install -y musl-tools
+      - name: Build ${{ matrix.service }}
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: -p ${{ matrix.package }} ${{ env.CARGO_BUILD_ARGS }}
       - name: Prepare ${{ matrix.service }}
+        shell: bash
         run: |-
           mkdir -p ./services/${{ matrix.package }}/func/bin
           cp ./target/cargo/release/${{ matrix.package }} ./services/${{ matrix.package }}/func/bin/handler
-          echo "\"${{ matrix.fa_name_var }}\""
       - name: Deploy ${{ matrix.service }}
         uses: Azure/functions-action@v1
         with:
           app-name: ${{ secrets[matrix.fa_name_var] }}
           package: ./services/${{ matrix.package }}/func
-          publish-profile: ${{ secrets[matrix.fa_publish_profile_var] }}
+          respect-funcignore: true
