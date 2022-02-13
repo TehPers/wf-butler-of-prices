@@ -28,7 +28,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Log into Azure CLI
+      - name: Log into Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_RBAC_CREDENTIALS }}
