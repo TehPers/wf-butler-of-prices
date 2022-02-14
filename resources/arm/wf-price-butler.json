@@ -217,7 +217,7 @@
                         },
                         {
                             "name": "SERVICE_BUS",
-                            "value": "[listKeys(resourceId('Microsoft.ServiceBus/namespaces/authorizationRules', concat(parameters('sbName'), '-', parameters('envName')), parameters('sbAuthRuleName')), '2021-11-01').primaryConnectionString]"
+                            "value": "[listKeys(resourceId('Microsoft.ServiceBus/namespaces/authorizationRules', concat(parameters('sbName'), '-', parameters('envName')), parameters('sbAuthRuleName')), '2017-04-01').primaryConnectionString]"
                         }
                     ]
                 }
