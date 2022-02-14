@@ -177,7 +177,7 @@
                 "reserved": true,
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', concat(parameters('services')[copyIndex()].aspName, '-', parameters('envName')))]",
                 "siteConfig": {
-                    "linuxFxVersion": "custom",
+                    "linuxFxVersion": "",
                     "appSettings": [
                         {
                             "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
