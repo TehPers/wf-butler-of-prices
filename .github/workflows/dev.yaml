@@ -2,7 +2,7 @@ name: Deploy (dev)
 
 on:
   push:
-    branches: [dev, azure-openid-auth]
+    branches: [dev]
 
 env:
   CARGO_TERM_COLOR: always
