@@ -1,0 +1,226 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "envName": {
+            "type": "string"
+        },
+        "appId": {
+            "type": "string"
+        },
+        "clientId": {
+            "type": "string"
+        },
+        "clientSecret": {
+            "type": "string"
+        },
+        "discordPublicKey": {
+            "type": "string"
+        },
+        "services": {
+            "type": "array",
+            "defaultValue": [
+                {
+                    "aspName": "wf-price-butler-dispatcher-asp",
+                    "faName": "wf-price-butler-dispatcher-app",
+                    "saName": "wfpbdispatchersa",
+                    "appiName": "wf-price-butler-dispatcher-appi"
+                },
+                {
+                    "aspName": "wf-price-butler-processor-asp",
+                    "faName": "wf-price-butler-processor-app",
+                    "saName": "wfpbprocessorsa",
+                    "appiName": "wf-price-butler-processor-appi"
+                }
+            ]
+        },
+        "sbName": {
+            "type": "string",
+            "defaultValue": "wf-price-butler-sb"
+        },
+        "sbAuthRuleName": {
+            "type": "string",
+            "defaultValue": "Discord"
+        },
+        "sbInteractionsQueueName": {
+            "type": "string",
+            "defaultValue": "interactions"
+        }
+    },
+    "resources": [
+        {
+            "type": "Microsoft.ServiceBus/namespaces",
+            "apiVersion": "2017-04-01",
+            "name": "[concat(parameters('sbName'), '-', parameters('envName'))]",
+            "location": "[resourceGroup().location]",
+            "kind": "Messaging",
+            "tags": {
+                "environment": "[parameters('envName')]"
+            },
+            "sku": {
+                "name": "Basic"
+            },
+            "resources": [
+                {
+                    "type": "queues",
+                    "apiVersion": "2017-04-01",
+                    "name": "[parameters('sbInteractionsQueueName')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.ServiceBus/namespaces', concat(parameters('sbName'), '-', parameters('envName')))]"
+                    ],
+                    "properties": {
+                        "path": "[parameters('sbInteractionsQueueName')]"
+                    }
+                },
+                {
+                    "type": "AuthorizationRules",
+                    "apiVersion": "2017-04-01",
+                    "name": "[parameters('sbAuthRuleName')]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.ServiceBus/namespaces', concat(parameters('sbName'), '-', parameters('envName')))]"
+                    ],
+                    "properties": {
+                        "rights": [
+                            "Send",
+                            "Listen"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "copy": {
+                "name": "service_sa",
+                "count": "[length(parameters('services'))]",
+                "mode": "Parallel"
+            },
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[concat(parameters('services')[copyIndex()].saName, parameters('envName'))]",
+            "apiVersion": "2021-06-01",
+            "location": "[resourceGroup().location]",
+            "kind": "StorageV2",
+            "tags": {
+                "environment": "[parameters('envName')]"
+            },
+            "sku": {
+                "name": "Standard_LRS"
+            }
+        },
+        {
+            "copy": {
+                "name": "service_appi",
+                "count": "[length(parameters('services'))]",
+                "mode": "Parallel"
+            },
+            "type": "Microsoft.Insights/components",
+            "apiVersion": "2020-02-02",
+            "name": "[concat(parameters('services')[copyIndex()].appiName, '-', parameters('envName'))]",
+            "location": "[resourceGroup().location]",
+            "kind": "web",
+            "tags": {
+                "[concat('hidden-link:', resourceGroup().id, '/providers/Microsoft.Web/sites/', parameters('services')[copyIndex()].faName)]": "Resource",
+                "environment": "[parameters('envName')]"
+            },
+            "properties": {
+                "Application_Type": "web",
+                "ApplicationId": "[concat(parameters('services')[copyIndex()].appiName, '-', parameters('envName'))]",
+                "RetentionInDays": 30
+            }
+        },
+        {
+            "copy": {
+                "name": "service_asp",
+                "count": "[length(parameters('services'))]",
+                "mode": "Parallel"
+            },
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2021-02-01",
+            "name": "[concat(parameters('services')[copyIndex()].aspName, '-', parameters('envName'))]",
+            "location": "[resourceGroup().location]",
+            "tags": {
+                "environment": "[parameters('envName')]"
+            },
+            "sku": {
+                "name": "Y1",
+                "tier": "Dynamic",
+                "size": "Y1",
+                "family": "Y",
+                "capacity": 0
+            },
+            "properties": {
+                "name": "[concat(parameters('services')[copyIndex()].aspName, '-', parameters('envName'))]",
+                "computeMode": "Dynamic",
+                "reserved": true
+            }
+        },
+        {
+            "copy": {
+                "name": "service_fa",
+                "count": "[length(parameters('services'))]",
+                "mode": "Parallel"
+            },
+            "type": "Microsoft.Web/sites",
+            "apiVersion": "2021-02-01",
+            "name": "[concat(parameters('services')[copyIndex()].faName, '-', parameters('envName'))]",
+            "location": "[resourceGroup().location]",
+            "kind": "functionapp,linux",
+            "tags": {
+                "environment": "[parameters('envName')]"
+            },
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', concat(parameters('services')[copyIndex()].aspName, '-', parameters('envName')))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', concat(parameters('services')[copyIndex()].saName, parameters('envName')))]",
+                "[resourceId('Microsoft.Insights/components', concat(parameters('services')[copyIndex()].appiName, '-', parameters('envName')))]"
+            ],
+            "properties": {
+                "reserved": true,
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', concat(parameters('services')[copyIndex()].aspName, '-', parameters('envName')))]",
+                "siteConfig": {
+                    "linuxFxVersion": "custom",
+                    "appSettings": [
+                        {
+                            "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                            "value": "[reference(resourceId('Microsoft.Insights/components', concat(parameters('services')[copyIndex()].appiName, '-', parameters('envName'))), '2020-02-02').InstrumentationKey]"
+                        },
+                        {
+                            "name": "AzureWebJobsStorage",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', concat(parameters('services')[copyIndex()].saName, parameters('envName')), ';EndpointSuffix=', environment().suffixes.storage, ';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', concat(parameters('services')[copyIndex()].saName, parameters('envName'))), '2019-06-01').keys[0].value)]"
+                        },
+                        {
+                            "name": "FUNCTIONS_EXTENSION_VERSION",
+                            "value": "~4"
+                        },
+                        {
+                            "name": "FUNCTIONS_WORKER_RUNTIME",
+                            "value": "custom"
+                        },
+                        {
+                            "name": "APP_ID",
+                            "value": "[parameters('appId')]"
+                        },
+                        {
+                            "name": "CLIENT_ID",
+                            "value": "[parameters('clientId')]"
+                        },
+                        {
+                            "name": "CLIENT_SECRET",
+                            "value": "[parameters('clientSecret')]"
+                        },
+                        {
+                            "name": "DISCORD_PUBLIC_KEY",
+                            "value": "[parameters('discordPublicKey')]"
+                        },
+                        {
+                            "name": "RUST_LOG",
+                            "value": "info"
+                        },
+                        {
+                            "name": "SERVICE_BUS",
+                            "value": "[listKeys(resourceId('Microsoft.ServiceBus/namespaces/authorizationRules', parameters('sbName'), parameters('sbAuthRuleName')), '2021-11-01').primaryConnectionString]"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}

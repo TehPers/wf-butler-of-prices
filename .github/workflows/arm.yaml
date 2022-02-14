@@ -1,17 +1,20 @@
-name: Deploy (dev)
+name: Deploy infrastructure
 
 on:
-  push:
-    branches: [dev]
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: environment
+        description: The environment to deploy to.
+        required: true
 
 env:
   CARGO_TERM_COLOR: always
-  CARGO_BUILD_ARGS: --release --verbose
 
 jobs:
   arm:
     runs-on: ubuntu-latest
-    environment: dev
+    environment: ${{ github.event.inputs.environment }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -24,4 +27,10 @@ jobs:
         with:
           subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP_NAME }}
-          template: resources/
+          template: ./resources/arm/wf-price-butler.json
+          parameters: >-
+            envName=${{ github.event.inputs.environment }}
+            appId=${{ secrets.APP_ID }}
+            clientId=${{ secrets.CLIENT_ID }}
+            clientSecret=${{ secrets.CLIENT_SECRET }}
+            discordPublicKey=${{ secrets.DISCORD_PUBLIC_KEY }}
