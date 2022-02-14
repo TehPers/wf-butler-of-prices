@@ -218,6 +218,10 @@
                         {
                             "name": "SERVICE_BUS",
                             "value": "[listKeys(resourceId('Microsoft.ServiceBus/namespaces/authorizationRules', concat(parameters('sbName'), '-', parameters('envName')), parameters('sbAuthRuleName')), '2017-04-01').primaryConnectionString]"
+                        },
+                        {
+                            "name": "INTERACTIONS_QUEUE",
+                            "value": "[parameters('sbInteractionsQueueName')]"
                         }
                     ]
                 }
