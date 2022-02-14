@@ -170,7 +170,8 @@
             "dependsOn": [
                 "[resourceId('Microsoft.Web/serverfarms', concat(parameters('services')[copyIndex()].aspName, '-', parameters('envName')))]",
                 "[resourceId('Microsoft.Storage/storageAccounts', concat(parameters('services')[copyIndex()].saName, parameters('envName')))]",
-                "[resourceId('Microsoft.Insights/components', concat(parameters('services')[copyIndex()].appiName, '-', parameters('envName')))]"
+                "[resourceId('Microsoft.Insights/components', concat(parameters('services')[copyIndex()].appiName, '-', parameters('envName')))]",
+                "[resourceId('Microsoft.ServiceBus/namespaces/authorizationRules', concat(parameters('sbName'), '-', parameters('envName')), parameters('sbAuthRuleName'))]"
             ],
             "properties": {
                 "reserved": true,
@@ -216,7 +217,7 @@
                         },
                         {
                             "name": "SERVICE_BUS",
-                            "value": "[listKeys(resourceId('Microsoft.ServiceBus/namespaces/authorizationRules', parameters('sbName'), parameters('sbAuthRuleName')), '2021-11-01').primaryConnectionString]"
+                            "value": "[listKeys(resourceId('Microsoft.ServiceBus/namespaces/authorizationRules', concat(parameters('sbName'), '-', parameters('envName')), parameters('sbAuthRuleName')), '2021-11-01').primaryConnectionString]"
                         }
                     ]
                 }
