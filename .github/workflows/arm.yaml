@@ -11,6 +11,10 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   arm:
     runs-on: ubuntu-latest

@@ -21,6 +21,10 @@ on:
 env:
   CARGO_BUILD_ARGS: --release --verbose
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
