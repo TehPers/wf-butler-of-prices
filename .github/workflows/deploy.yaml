@@ -1,0 +1,75 @@
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        type: string
+        required: true
+    secrets:
+      AZURE_RBAC_CREDENTIALS:
+        required: true
+      DISPATCHER_FA_NAME:
+        required: true
+      PROCESSOR_FA_NAME:
+        required: true
+
+env:
+  CARGO_BUILD_ARGS: --release --verbose
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    strategy:
+      fail-fast: true
+      matrix:
+        service: [dispatcher, processor]
+        include:
+          - service: dispatcher
+            package: wfinfo_dispatcher
+            fa_name_var: DISPATCHER_FA_NAME
+          - service: processor
+            package: wfinfo_processor
+            fa_name_var: PROCESSOR_FA_NAME
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Log into Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_RBAC_CREDENTIALS }}
+      - name: Setup toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: x86_64-unknown-linux-musl
+          components: rustfmt, clippy
+          override: true
+      - name: Cache build artifacts
+        uses: Swatinem/rust-cache@v1
+        with:
+          sharedKey: deploy-${{ matrix.service }}-${{ inputs.environment }}
+      - name: Install musl-gcc and dependencies
+        shell: bash
+        run: |-
+          sudo apt-get update
+          sudo apt-get upgrade -y
+          sudo apt-get install -y musl-tools
+      - name: Build ${{ matrix.service }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: -p ${{ matrix.package }} ${{ env.CARGO_BUILD_ARGS }}
+      - name: Prepare ${{ matrix.service }}
+        shell: bash
+        run: |-
+          mkdir -p ./services/${{ matrix.package }}/func/bin
+          cp ./target/cargo/release/${{ matrix.package }} ./services/${{ matrix.package }}/func/bin/handler
+      - name: Deploy ${{ matrix.service }}
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ secrets[matrix.fa_name_var] }}
+          package: ./services/${{ matrix.package }}/func
+          respect-funcignore: true
