@@ -1,0 +1,21 @@
+name: Deploy infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: environment
+        description: The environment to deploy to.
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  arm:
+    runs-on: ubuntu-latest
+    steps:
+      - shell: bash
+        run: |-
+          echo 'Not yet implemented'
+          exit 1
