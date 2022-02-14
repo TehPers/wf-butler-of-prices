@@ -21,7 +21,9 @@ jobs:
       - name: Log into Azure
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_RBAC_CREDENTIALS }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: Deploy ARM template
         uses: azure/arm-deploy@v1
         with:
