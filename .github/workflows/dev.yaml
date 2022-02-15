@@ -1,8 +1,13 @@
-name: Deploy (dev)
+name: deploy-dev
 
 on:
   push:
     branches: [dev]
+  workflow_dispatch:
+  workflow_run:
+    workflows: [infrastructure]
+    types: [completed]
+    branches: [prod]
 
 env:
   CARGO_TERM_COLOR: always
