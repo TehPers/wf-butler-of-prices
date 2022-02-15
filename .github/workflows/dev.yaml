@@ -2,7 +2,7 @@ name: Deploy (dev)
 
 on:
   push:
-    branches: [dev, register-discord]
+    branches: [dev]
 
 env:
   CARGO_TERM_COLOR: always
