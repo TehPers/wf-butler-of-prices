@@ -87,8 +87,15 @@ jobs:
           respect-funcignore: true
   register:
     runs-on: ubuntu-latest
+    needs: deploy
     environment: ${{ inputs.environment }}
     steps:
+      - name: Log into Azure
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: Get commands function_endpoint
         id: get_func
         uses: Azure/cli@v1
