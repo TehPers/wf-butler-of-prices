@@ -7,7 +7,7 @@ on:
   workflow_run:
     workflows: [infrastructure]
     types: [completed]
-    branches: [prod]
+    branches: [dev]
 
 jobs:
   deploy:
