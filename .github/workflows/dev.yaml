@@ -9,9 +9,6 @@ on:
     types: [completed]
     branches: [prod]
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
   deploy:
     uses: ./.github/workflows/deploy.yaml
