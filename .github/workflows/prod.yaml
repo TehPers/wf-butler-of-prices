@@ -1,0 +1,22 @@
+name: Deploy (prod)
+
+on:
+  push:
+    branches: [prod]
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_BUILD_ARGS: --release --verbose
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/deploy.yaml
+    with:
+      environment: prod
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_RESOURCE_GROUP_NAME: ${{ secrets.AZURE_RESOURCE_GROUP_NAME }}
+      DISPATCHER_FA_NAME: ${{ secrets.DISPATCHER_FA_NAME }}
+      PROCESSOR_FA_NAME: ${{ secrets.PROCESSOR_FA_NAME }}

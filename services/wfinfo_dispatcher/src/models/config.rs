@@ -12,7 +12,6 @@ pub struct Config {
     #[serde(default)]
     pub ignore_signature: bool,
     pub discord_public_key: ConfigPublicKey,
-    pub admin_public_key: ConfigPublicKey,
     #[serde(rename = "functions_customhandler_port", default = "default_port")]
     pub port: u16,
 }

@@ -115,7 +115,9 @@ where
                     .ok()
                     .and_then(|signature| hex::decode(signature).ok())
                     // .and_then(|signature| signature.try_into().ok())
-                    .and_then(|signature| Signature::from_bytes(&signature).ok())
+                    .and_then(|signature| {
+                        Signature::from_bytes(&signature).ok()
+                    })
                     .ok_or(CheckSignatureError::InvalidSignature(
                         "<trimmed>".to_string(),
                     ))

@@ -35,4 +35,4 @@ features = ["display"]
 [dependencies.ed25519-dalek]
 version = "1"
 default-features = false
-features = ["std", "u64_backend", "serde", "nightly"]
+features = ["std", "u64_backend", "serde"]
