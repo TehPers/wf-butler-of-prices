@@ -13,6 +13,8 @@ on:
         required: true
       AZURE_SUBSCRIPTION_ID:
         required: true
+      AZURE_RESOURCE_GROUP_NAME:
+        required: true
       DISPATCHER_FA_NAME:
         required: true
       PROCESSOR_FA_NAME:
@@ -83,3 +85,39 @@ jobs:
           app-name: ${{ secrets[matrix.fa_name_var] }}
           package: ./services/${{ matrix.package }}/func
           respect-funcignore: true
+  register:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Get commands function_endpoint
+        id: get_func
+        uses: Azure/cli@v1
+        with:
+          inlineScript: |-
+            FUNC_URL=$( \
+              az functionapp function show \
+                --name ${{ secrets.PROCESSOR_FA_NAME }} \
+                --function-name commands \
+                --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_NAME }} \
+                --query 'invokeUrlTemplate' \
+                --output tsv \
+            )
+            FUNC_CODE=$( \
+              az functionapp function keys list \
+                --name ${{ secrets.PROCESSOR_FA_NAME }} \
+                --function-name commands \
+                --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_NAME }} \
+                --query 'default'
+                --output tsv
+            )
+            echo "::set-output name=func_url::$FUNC_URL"
+            echo "::set-output name=func_code::$FUNC_CODE"
+      - name: Register commands function
+        shell: bash
+        run: |-
+          curl \
+            --request POST \
+            --header 'content-type: application/json' \
+            --data '{ "type": "register_commands" }' \
+            --fail \
+            "${{ steps.get_func.outputs.func_url }}?code=${{ steps.get_func.outputs.func_code }}"
