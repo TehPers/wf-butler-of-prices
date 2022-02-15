@@ -114,7 +114,7 @@ jobs:
                 --name ${{ secrets.PROCESSOR_FA_NAME }} \
                 --function-name commands \
                 --resource-group ${{ secrets.AZURE_RESOURCE_GROUP_NAME }} \
-                --query 'default'
+                --query 'default' \
                 --output tsv
             )
             echo "::set-output name=func_url::$FUNC_URL"
