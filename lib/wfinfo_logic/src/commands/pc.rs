@@ -575,7 +575,7 @@ fn create_response(
                     cost = order.platinum,
                     quantity = order.quantity,
                 ).unwrap();
-                match order.rank                 {
+                match order.rank {
                     ItemRank::ModOrArcane { mod_rank: rank, .. } => writeln!(
                         offers,
                         "/w {seller} Hi! I want to buy: {item} (rank {rank}) for {cost} platinum. (warframe.market)",
