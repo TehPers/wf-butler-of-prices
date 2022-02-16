@@ -537,26 +537,25 @@ fn create_response(
             EmbedField {
                 name: "Price range".to_string(),
                 value: format!(
-                    "{}{p} - {}{p}",
-                    range.start(),
-                    range.end(),
-                    p = PLAT
+                    "{start}{PLAT} - {end}{PLAT}",
+                    start = range.start(),
+                    end = range.end(),
                 ),
                 inline: Some(true),
             },
             EmbedField {
                 name: "Mean (x̄)".to_string(),
-                value: format!("{:0.2}{p}", mean, p = PLAT),
+                value: format!("{mean:0.2}{PLAT}"),
                 inline: Some(true),
             },
             EmbedField {
                 name: "Median".to_string(),
-                value: format!("{:.1}{p}", median, p = PLAT),
+                value: format!("{median:.1}{PLAT}"),
                 inline: Some(true),
             },
             EmbedField {
                 name: "Standard deviation (s)".to_string(),
-                value: format!("{:.2}", deviation),
+                value: format!("{deviation:.2}"),
                 inline: Some(true),
             },
         ]),
@@ -570,21 +569,44 @@ fn create_response(
                 // TODO: write to offers and put into an embed
                 writeln!(
                     offers,
-                    "**{}** ({:+}): {}{p}, {} remaining ```",
-                    order.user.ingame_name,
-                    order.user.reputation,
-                    order.platinum,
-                    order.quantity,
-                    p = PLAT,
+                    "**{seller}** ({rep:+}): {cost}{PLAT}, {quantity} remaining ```",
+                    seller = order.user.ingame_name,
+                    rep = order.user.reputation,
+                    cost = order.platinum,
+                    quantity = order.quantity,
                 ).unwrap();
-                writeln!(
-                    offers,
-                    "/w {} Hi! I want to buy: {} for {} platinum. (warframe.market)",
-                    order.user.ingame_name,
-                    item_details.en.item_name,
-                    order.platinum,
-                )
-                .unwrap();
+                match order.rank                 {
+                    ItemRank::ModOrArcane { mod_rank: rank, .. } => writeln!(
+                        offers,
+                        "/w {seller} Hi! I want to buy: {item} (rank {rank}) for {cost} platinum. (warframe.market)",
+                        seller = order.user.ingame_name,
+                        item = item_details.en.item_name,
+                        cost = order.platinum,
+                    )
+                    .unwrap(),
+                    ItemRank::Relic { refinement, .. } => writeln!(
+                        offers,
+                        "/w {seller} Hi! I want to buy: {item} ({refinement}) for {cost} platinum. (warframe.market)",
+                        seller = order.user.ingame_name,
+                        item = item_details.en.item_name,
+                        refinement = match refinement {
+                            RelicRefinement::Intact => "intact",
+                            RelicRefinement::Exceptional => "exceptional",
+                            RelicRefinement::Flawless => "flawless",
+                            RelicRefinement::Radiant => "radiant",
+                        },
+                        cost = order.platinum,
+                    )
+                    .unwrap(),
+                    ItemRank::Item { .. } => writeln!(
+                        offers,
+                        "/w {seller} Hi! I want to buy: {item} for {cost} platinum. (warframe.market)",
+                        seller = order.user.ingame_name,
+                        item = item_details.en.item_name,
+                        cost = order.platinum,
+                    )
+                    .unwrap(),
+                }
                 writeln!(offers, "```").unwrap();
 
                 offers
