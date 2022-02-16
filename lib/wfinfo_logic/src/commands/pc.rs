@@ -566,7 +566,6 @@ fn create_response(
             .iter()
             .take(3)
             .fold(String::new(), |mut offers, order| {
-                // TODO: write to offers and put into an embed
                 writeln!(
                     offers,
                     "**{seller}** ({rep:+}): {cost}{PLAT}, {quantity} remaining ```",
