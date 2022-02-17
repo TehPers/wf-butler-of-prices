@@ -1,0 +1,16 @@
+[package]
+name = "wfbp_commands"
+version = "0.1.0"
+authors = ["TehPers <tehperz@gmail.com>"]
+edition = "2021"
+publish = false
+
+[dependencies]
+anyhow = "1"
+wfbp_discord = { path = "../wfbp_discord" }
+wfbp_http = { path = "../wfbp_http" }
+tracing = "0.1"
+derive_more = { version = "0.99", features = ["display", "error"] }
+async-recursion = "1"
+async-trait = "0.1"
+tokio = "1"

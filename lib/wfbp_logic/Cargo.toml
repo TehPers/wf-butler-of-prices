@@ -1,0 +1,17 @@
+[package]
+name = "wfbp_logic"
+version = "0.1.0"
+authors = ["TehPers <tehperz@gmail.com>"]
+edition = "2021"
+publish = false
+
+[dependencies]
+anyhow = "1"
+wfbp_discord = { path = "../wfbp_discord" }
+wfbp_wm = { path = "../wfbp_wm" }
+wfbp_commands = { path = "../wfbp_commands" }
+tracing = "0.1"
+async-recursion = "1"
+async-trait = "0.1"
+qp-trie = "0.7"
+tokio = "1"

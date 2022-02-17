@@ -38,10 +38,10 @@ jobs:
         service: [dispatcher, processor]
         include:
           - service: dispatcher
-            package: wfinfo_dispatcher
+            package: wfbp_dispatcher
             fa_name_var: DISPATCHER_FA_NAME
           - service: processor
-            package: wfinfo_processor
+            package: wfbp_processor
             fa_name_var: PROCESSOR_FA_NAME
     steps:
       - name: Checkout code
