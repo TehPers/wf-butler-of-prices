@@ -1,4 +1,5 @@
 use crate::{FromOption, FromOptionError};
+use alloc::sync;
 use async_recursion::async_recursion;
 use async_trait::async_trait;
 use derive_more::{Display, Error};
@@ -13,12 +14,27 @@ use wfbp_discord::{
         ApplicationCommandInteractionDataOptionType,
         ApplicationCommandInteractionDataResolved, ApplicationCommandOption,
         ApplicationCommandOptionChoice, ApplicationCommandOptionType,
-        CreateApplicationCommand, GuildMember, Snowflake, User,
+        CreateApplicationCommand, GuildMember, Snowflake, User, Application,
     },
     routes::CreateGlobalApplicationCommand,
     DiscordRestClient,
 };
 use wfbp_http::RequestError;
+
+pub enum ApplicationInteraction {
+    ApplicationCommand {
+        command: ApplicationCommand,
+    },
+}
+
+pub enum ApplicationCommand {
+    SlashCommand,
+}
+
+#[async_trait]
+pub trait SlashCommand2: Send + Sync {
+    fn handle<'opts>(&self, opts: CommandOptionRegistry<'opts>) -> anyhow::Result<()>;
+}
 
 pub struct SlashCommand {
     pub name: Cow<'static, str>,

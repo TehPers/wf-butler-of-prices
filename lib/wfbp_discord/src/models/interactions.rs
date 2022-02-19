@@ -225,11 +225,12 @@ pub struct Interaction {
     pub id: Snowflake,
     /// Id of the application this interaction is for.
     pub application_id: Snowflake,
+    /// The type of the command.
     #[serde(flatten)]
     pub kind: InteractionType,
     /// A continuation token for responding to the interaction.
     pub token: String,
-    /// Read-only property, always 1.
+    /// Auto-incrementing version identifier updated during substantial record changes.
     pub version: u8,
 }
 
@@ -238,8 +239,6 @@ serde_inner_enum! {
     pub enum InteractionType = "type" {
         Ping = 1,
         ApplicationCommand = 2 {
-            /// The command data payload.
-            data: ApplicationCommandInteractionData,
             /// The guild it was sent from.
             [?] guild_id: Option<Snowflake>,
             /// The channel it was sent from.
@@ -248,6 +247,8 @@ serde_inner_enum! {
             [?] member: Option<GuildMember>,
             /// User object for the invoking user, if invoked in a DM.
             [?] user: Option<User>,
+            /// The command data payload.
+            data: ApplicationCommandInteractionData,
         },
         MessageComponent = 3 {
             /// The guild it was sent from.
@@ -262,7 +263,31 @@ serde_inner_enum! {
             message: Message,
             /// The type of the component.
             component_type: ComponentType,
-        }
+        },
+        Autocomplete = 4 {
+            /// The guild it was sent from.
+            [?] guild_id: Option<Snowflake>,
+            /// The channel it was sent from.
+            channel_id: Snowflake,
+            /// Guild member data for the invoking user, including permissions.
+            [?] member: Option<GuildMember>,
+            /// User object for the invoking user, if invoked in a DM.
+            [?] user: Option<User>,
+        },
+        ModalSubmit = 5 {
+            /// The guild it was sent from.
+            [?] guild_id: Option<Snowflake>,
+            /// The channel it was sent from.
+            channel_id: Snowflake,
+            /// Guild member data for the invoking user, including permissions.
+            [?] member: Option<GuildMember>,
+            /// User object for the invoking user, if invoked in a DM.
+            [?] user: Option<User>,
+            /// The message the component was attached to.
+            message: Message,
+            // /// TODO:  The command data payload.
+            // data: ApplicationCommandInteractionData,
+        },
     }
 }
 

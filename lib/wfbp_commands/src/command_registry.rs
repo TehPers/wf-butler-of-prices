@@ -2,7 +2,7 @@ use crate::{InteractionData, SlashCommand, SlashCommandData};
 use anyhow::{bail, Context};
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
-use tracing::{debug, error, instrument};
+use tracing::{debug, error};
 use wfbp_discord::{
     models::{
         ApplicationCommandInteractionData, Interaction, InteractionType,
@@ -52,7 +52,6 @@ impl CommandRegistry {
         Ok(())
     }
 
-    #[instrument(skip(self, interaction))]
     pub async fn handle_interaction(
         &self,
         interaction: Interaction,
@@ -88,7 +87,7 @@ impl CommandRegistry {
                         let slash_commands = self.slash_commands.read().await;
                         let command = match slash_commands.get(name.as_str()) {
                             Some(command) => command,
-                            None => bail!("command not found: '{}'", name),
+                            None => bail!("command not found: '{name}'"),
                         };
 
                         let command_data = SlashCommandData {
@@ -113,6 +112,12 @@ impl CommandRegistry {
             }
             InteractionType::MessageComponent { .. } => {
                 bail!("message components not implemented")
+            }
+            InteractionType::Autocomplete { .. } => {
+                bail!("autocomplete not implemented")
+            }
+            InteractionType::ModalSubmit { .. } => {
+                bail!("modals not implemented")
             }
         }
     }
