@@ -2144,7 +2144,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "wfinfo_azure"
+name = "wfbp_azure"
 version = "0.1.0"
 dependencies = [
  "serde",
@@ -2152,7 +2152,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "wfinfo_commands"
+name = "wfbp_commands"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2161,12 +2161,12 @@ dependencies = [
  "derive_more",
  "tokio",
  "tracing",
- "wfinfo_discord",
- "wfinfo_http",
+ "wfbp_discord",
+ "wfbp_http",
 ]
 
 [[package]]
-name = "wfinfo_discord"
+name = "wfbp_discord"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2182,12 +2182,12 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
- "wfinfo_http",
+ "wfbp_http",
  "zeroize",
 ]
 
 [[package]]
-name = "wfinfo_dispatcher"
+name = "wfbp_dispatcher"
 version = "0.1.0"
 dependencies = [
  "actix-web",
@@ -2202,12 +2202,12 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "wfinfo_azure",
- "wfinfo_discord",
+ "wfbp_azure",
+ "wfbp_discord",
 ]
 
 [[package]]
-name = "wfinfo_http"
+name = "wfbp_http"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2226,7 +2226,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "wfinfo_logic"
+name = "wfbp_logic"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2235,13 +2235,13 @@ dependencies = [
  "qp-trie",
  "tokio",
  "tracing",
- "wfinfo_commands",
- "wfinfo_discord",
- "wfinfo_wm",
+ "wfbp_commands",
+ "wfbp_discord",
+ "wfbp_wm",
 ]
 
 [[package]]
-name = "wfinfo_processor"
+name = "wfbp_processor"
 version = "0.1.0"
 dependencies = [
  "actix-web",
@@ -2258,16 +2258,16 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "wfinfo_azure",
- "wfinfo_commands",
- "wfinfo_discord",
- "wfinfo_logic",
- "wfinfo_wm",
+ "wfbp_azure",
+ "wfbp_commands",
+ "wfbp_discord",
+ "wfbp_logic",
+ "wfbp_wm",
  "zeroize",
 ]
 
 [[package]]
-name = "wfinfo_wm"
+name = "wfbp_wm"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -2283,7 +2283,7 @@ dependencies = [
  "tokio",
  "tower",
  "tracing",
- "wfinfo_http",
+ "wfbp_http",
 ]
 
 [[package]]
