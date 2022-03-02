@@ -83,14 +83,10 @@ async fn handle_interaction(
     // TODO: check if response should be ephemeral
     let response = match &interaction.kind {
         InteractionType::Ping => InteractionResponse::Pong,
-        InteractionType::ApplicationCommand { .. } => {
-            InteractionResponse::DeferredChannelMessageWithSource {
-                data: InteractionApplicationCommandCallbackData {
-                    ..Default::default()
-                },
-            }
-        }
-        InteractionType::MessageComponent { .. } => {
+        InteractionType::ApplicationCommand { .. }
+        | InteractionType::MessageComponent { .. }
+        | InteractionType::Autocomplete { .. }
+        | InteractionType::ModalSubmit { .. } => {
             InteractionResponse::DeferredChannelMessageWithSource {
                 data: InteractionApplicationCommandCallbackData {
                     ..Default::default()

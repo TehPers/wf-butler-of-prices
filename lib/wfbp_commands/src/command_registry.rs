@@ -77,7 +77,7 @@ impl CommandRegistry {
                 });
 
                 match data {
-                    ApplicationCommandInteractionData::ChatInput {
+                    ApplicationCommandInteractionData::SlashCommand {
                         id,
                         name,
                         resolved,

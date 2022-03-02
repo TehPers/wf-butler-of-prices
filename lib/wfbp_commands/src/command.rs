@@ -1,5 +1,4 @@
 use crate::{FromOption, FromOptionError};
-use alloc::sync;
 use async_recursion::async_recursion;
 use async_trait::async_trait;
 use derive_more::{Display, Error};
@@ -11,30 +10,15 @@ use std::{
 use wfbp_discord::{
     models::{
         ApplicationCommand, ApplicationCommandInteractionDataOption,
-        ApplicationCommandInteractionDataOptionType,
+        ApplicationCommandInteractionDataOptionValue,
         ApplicationCommandInteractionDataResolved, ApplicationCommandOption,
         ApplicationCommandOptionChoice, ApplicationCommandOptionType,
-        CreateApplicationCommand, GuildMember, Snowflake, User, Application,
+        CreateApplicationCommand, GuildMember, Snowflake, User,
     },
     routes::CreateGlobalApplicationCommand,
     DiscordRestClient,
 };
 use wfbp_http::RequestError;
-
-pub enum ApplicationInteraction {
-    ApplicationCommand {
-        command: ApplicationCommand,
-    },
-}
-
-pub enum ApplicationCommand {
-    SlashCommand,
-}
-
-#[async_trait]
-pub trait SlashCommand2: Send + Sync {
-    fn handle<'opts>(&self, opts: CommandOptionRegistry<'opts>) -> anyhow::Result<()>;
-}
 
 pub struct SlashCommand {
     pub name: Cow<'static, str>,
@@ -289,8 +273,8 @@ impl CommandOption {
             } => {
                 // Options
                 let option_data =
-                    match &invoke_data.kind {
-                        ApplicationCommandInteractionDataOptionType::SubCommand {
+                    match &invoke_data.value {
+                        ApplicationCommandInteractionDataOptionValue::SubCommand {
                             options,
                         } => options
                             .as_ref()
@@ -320,8 +304,8 @@ impl CommandOption {
                 Ok(())
             }
             CommandOptionType::SubCommandGroup { options } => {
-                let option_data = match &invoke_data.kind {
-                    ApplicationCommandInteractionDataOptionType::SubCommandGroup {
+                let option_data = match &invoke_data.value {
+                    ApplicationCommandInteractionDataOptionValue::SubCommandGroup {
                         options
                     } => options
                         .as_ref()

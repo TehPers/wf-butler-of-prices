@@ -6,6 +6,12 @@ macro_rules! serde_inner_enum {
     (@count $field_name:ident) => {
         1
     };
+    (@if [] $_body:block else $else:block) => {
+        $else
+    };
+    (@if [$($_:tt)+] $body:block else $_else:block) => {
+        $body
+    };
     (@ser $serializer:expr, $field_name:ident ?) => {
         if $field_name.is_some() {
             $serializer.serialize_field(stringify!($field_name), $field_name)
@@ -64,21 +70,22 @@ macro_rules! serde_inner_enum {
             )*
         }
 
+        #[allow(unused_imports, unused_variables)]
         const _: () = {
-            use serde::{
+            use ::serde::{
                 de::Error as DeError,
                 ser::SerializeStruct,
                 Deserialize, Deserializer, Serialize, Serializer
             };
-            use serde_json::Value;
-            use std::collections::HashMap;
+            use ::serde_json::Value;
+            use ::std::collections::HashMap;
 
             impl Serialize for $name {
                 fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
                 where
                     S: Serializer,
                 {
-                    match self {
+                    match *self {
                         $(
                             $name::$variant_name $({ $(ref $field_name,)* })? => {
                                 // Calculate length
@@ -102,33 +109,53 @@ macro_rules! serde_inner_enum {
                 where
                     D: Deserializer<'de>,
                 {
-                    // Collect into a map
-                    let mut entries: HashMap<String, Value> =
-                        Deserialize::deserialize(deserializer)?;
+                    $crate::serde_inner_enum!(
+                        @if [$($variant_name)*] {
+                            // Collect into a map
+                            let mut entries: HashMap<String, Value> =
+                                Deserialize::deserialize(deserializer)?;
 
-                    // Get the tag
-                    let tag = entries
-                        .remove($tag_name)
-                        .ok_or_else(|| DeError::missing_field($tag_name))?;
-                    let tag: u8 = tag
-                        .as_u64()
-                        .and_then(|tag| tag.try_into().ok())
-                        .ok_or_else(|| DeError::custom(concat!("invalid value for field '", $tag_name, "'")))?;
+                            // Get the tag
+                            let tag = entries
+                                .remove($tag_name)
+                                .ok_or_else(|| DeError::missing_field($tag_name))?;
+                            let tag: u8 = tag
+                                .as_u64()
+                                .and_then(|tag| tag.try_into().ok())
+                                .ok_or_else(|| {
+                                    DeError::custom(
+                                        concat!("invalid value for field '", $tag_name, "'")
+                                    )
+                                })?;
 
-                    // Deserialize variant
-                    match tag {
-                        $(
-                            $tag_value => {
-                                // Deserialize fields
-                                $($(let $field_name = $crate::serde_inner_enum!(@de entries, $field_name $($mod)?)?;)*)?
+                            // Deserialize variant
+                            match tag {
+                                $(
+                                    $tag_value => {
+                                        // Deserialize fields
+                                        $(
+                                            $(
+                                                let $field_name = $crate::serde_inner_enum!(
+                                                    @de entries,
+                                                    $field_name
+                                                    $($mod)?
+                                                )?;
+                                            )*
+                                        )?
 
-                                Ok($name::$variant_name $({
-                                    $($field_name,)*
-                                })?)
-                            },
-                        )*
-                        _ => Err(DeError::custom(format!("invalid tag: '{}'", tag))),
-                    }
+                                        Ok($name::$variant_name $({
+                                            $($field_name,)*
+                                        })?)
+                                    },
+                                )*
+                                _ => Err(DeError::custom(format!("invalid tag: '{}'", tag))),
+                            }
+                        } else {
+                            Err(DeError::custom(
+                                concat!(stringify!($name), " cannot be deserialized into")
+                            ))
+                        }
+                    )
                 }
             }
         };

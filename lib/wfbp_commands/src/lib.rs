@@ -7,3 +7,5 @@ pub use builders::*;
 pub use command::*;
 pub use command_registry::*;
 pub use from_option::*;
+
+pub mod interactions;

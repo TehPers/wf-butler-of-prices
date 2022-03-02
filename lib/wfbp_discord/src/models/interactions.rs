@@ -230,7 +230,8 @@ pub struct Interaction {
     pub kind: InteractionType,
     /// A continuation token for responding to the interaction.
     pub token: String,
-    /// Auto-incrementing version identifier updated during substantial record changes.
+    /// Auto-incrementing version identifier updated during substantial record
+    /// changes.
     pub version: u8,
 }
 
@@ -294,7 +295,7 @@ serde_inner_enum! {
 serde_inner_enum! {
     #[derive(Clone, Debug)]
     pub enum ApplicationCommandInteractionData = "type" {
-        ChatInput = 1 {
+        SlashCommand = 1 {
             /// The ID of the invoked command.
             id: Snowflake,
             /// The name of the invoked command.
@@ -351,12 +352,12 @@ pub struct ApplicationCommandInteractionDataOption {
     /// The name of the parameter.
     pub name: String,
     #[serde(flatten)]
-    pub kind: ApplicationCommandInteractionDataOptionType,
+    pub value: ApplicationCommandInteractionDataOptionValue,
 }
 
 serde_inner_enum! {
     #[derive(Clone, Debug)]
-    pub enum ApplicationCommandInteractionDataOptionType = "type" {
+    pub enum ApplicationCommandInteractionDataOptionValue = "type" {
         SubCommand = 1 {
             [?] options: Option<Vec<ApplicationCommandInteractionDataOption>>,
         },

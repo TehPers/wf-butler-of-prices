@@ -2,7 +2,7 @@ use anyhow::Context;
 use derive_more::{Display, Error};
 use wfbp_discord::models::{
     ApplicationCommandInteractionDataOption,
-    ApplicationCommandInteractionDataOptionType, Snowflake,
+    ApplicationCommandInteractionDataOptionValue, Snowflake,
 };
 
 #[non_exhaustive]
@@ -24,7 +24,7 @@ pub trait FromOption<'a>: Sized {
 
 macro_rules! from_option {
     (@branch $kind:expr, $variant:ident => |$value:pat_param| $result:expr) => {
-        if let ApplicationCommandInteractionDataOptionType::$variant {
+        if let ApplicationCommandInteractionDataOptionValue::$variant {
             ref value
         } = $kind {
             return match value {
@@ -33,7 +33,7 @@ macro_rules! from_option {
         }
     };
     (@branch $kind:expr, $variant:ident) => {
-        if let ApplicationCommandInteractionDataOptionType::$variant {
+        if let ApplicationCommandInteractionDataOptionValue::$variant {
             value
         } = $kind {
             return Ok(value);
@@ -56,7 +56,7 @@ macro_rules! from_option {
             fn from_option(
                 option: &'a ApplicationCommandInteractionDataOption,
             ) -> Result<Self, FromOptionError> {
-                $(from_option!(@branch option.kind, $variant $(=> |$value| $result)?);)*
+                $(from_option!(@branch option.value, $variant $(=> |$value| $result)?);)*
                 Err(FromOptionError::InvalidType)
             }
         }
@@ -125,8 +125,8 @@ impl<'a> FromOption<'a> for &'a str {
     fn from_option(
         option: &'a ApplicationCommandInteractionDataOption,
     ) -> Result<Self, FromOptionError> {
-        match option.kind {
-            ApplicationCommandInteractionDataOptionType::String {
+        match option.value {
+            ApplicationCommandInteractionDataOptionValue::String {
                 ref value,
             } => Ok(value),
             _ => Err(FromOptionError::InvalidType),
