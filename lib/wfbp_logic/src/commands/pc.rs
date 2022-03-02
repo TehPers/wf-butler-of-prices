@@ -22,6 +22,7 @@ use wfbp_wm::{
     WmRestClient,
 };
 
+const WM_BASE_URL: &'static str = "https://warframe.market";
 const WM_ASSETS_ROOT: &'static str = "http://warframe.market/static/assets/";
 const PLAT: &'static str = "<:WFPlatinum:380292389798936579>";
 
@@ -460,13 +461,14 @@ async fn process(
     .context("error getting item orders")?;
 
     // Build response
-    let message = create_response(response, order_filters);
+    let message = create_response(response, order_filters, url_name.as_ref());
     Ok(message)
 }
 
 fn create_response(
     wm_res: PayloadResponse<ItemOrdersPayload, ItemPayload>,
     order_filters: OrderFilters,
+    url_name: &str,
 ) -> CreateWebhookMessage {
     // Get item details
     let item_details = match wm_res.include.as_ref() {
@@ -524,11 +526,11 @@ fn create_response(
 
     let main_embed = Embed {
         title: Some(item_details.en.item_name.clone()),
+        url: Some(format!("{WM_BASE_URL}/items/{url_name}")),
         description: Some(item_details.en.description.clone()),
         thumbnail: Some(EmbedThumbnail {
             url: Some(format!(
-                "{}{}",
-                WM_ASSETS_ROOT,
+                "{WM_ASSETS_ROOT}{}",
                 item_details.sub_icon.as_ref().unwrap_or(&item_details.icon)
             )),
             ..Default::default()
@@ -653,8 +655,7 @@ fn partial_error_response(
             description: Some(content.into()),
             thumbnail: Some(EmbedThumbnail {
                 url: Some(format!(
-                    "{}{}",
-                    WM_ASSETS_ROOT,
+                    "{WM_ASSETS_ROOT}{}",
                     item_details
                         .sub_icon
                         .as_ref()
