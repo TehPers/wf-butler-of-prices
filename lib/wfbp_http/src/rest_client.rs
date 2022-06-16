@@ -16,12 +16,14 @@ pub trait RestClient<R>
 where
     R: Route,
 {
+    /// Sends a request to the REST API through the given route.
     async fn request(&self, route: R) -> Result<R::Response, RequestError>;
 }
 
 pub type RestRequestLayer =
     BoxLayer<ExecuteRequestService, RestRequestBuilder, Response, RequestError>;
 
+/// A standard REST API client.
 #[derive(Clone, Debug)]
 pub struct StandardRestClient {
     route_layer: RouteLayer,
@@ -29,6 +31,7 @@ pub struct StandardRestClient {
 }
 
 impl StandardRestClient {
+    /// Creates a new REST API client.
     pub fn new(client: Client, base_url: impl Into<Cow<'static, str>>) -> Self {
         let base_url = base_url.into();
         let service = ServiceBuilder::new()
@@ -46,6 +49,7 @@ impl StandardRestClient {
         )
     }
 
+    /// Creates a new REST API client with the given layers.
     pub fn new_from_layers(
         route_layer: RouteLayer,
         request_layer: RestRequestLayer,

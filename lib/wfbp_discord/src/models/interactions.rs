@@ -1,9 +1,10 @@
 use crate::{
     models::{
-        AllowedMentions, Channel, Embed, Emoji, GuildMember, Message, Role,
-        Snowflake, User,
+        AllowedMentions, ApplicationId, Attachment, AttachmentId, Channel,
+        ChannelId, Embed, Emoji, GuildId, GuildMember, Message, MessageId,
+        Role, RoleId, User, UserId,
     },
-    serde_inner_enum,
+    serde_inner_enum, snowflake_newtype,
 };
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
@@ -58,56 +59,48 @@ pub struct SelectOption {
     pub default: Option<bool>,
 }
 
+snowflake_newtype! {
+    /// A unique ID for an application command.
+    pub struct ApplicationCommandId;
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ApplicationCommand {
+    /// Unique id of the command.
+    pub id: ApplicationCommandId,
+    /// The type of the command.
+    #[serde(flatten)]
+    pub kind: ApplicationCommandType,
+    /// Unique id of the parent application.
+    pub application_id: ApplicationId,
+    /// Guild id of the command, if not global.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub guild_id: Option<GuildId>,
+    /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
+    pub name: String,
+    /// 1-100 character description.
+    pub description: String,
+    /// Whether the command is enabled by default when the app is added to a
+    /// guild (default `true`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_permission: Option<bool>,
+}
+
 serde_inner_enum! {
+    /// An application command type.
     #[derive(Clone, Debug)]
-    pub enum ApplicationCommand = "type" {
+    pub enum ApplicationCommandType = "type" {
+        /// Slash commands; a text-based command that shows up when a user types `/`.
         ChatInput = 1 {
-            /// Unique id of the command.
-            id: Snowflake,
-            /// Unique id of the parent application.
-            application_id: Snowflake,
-            /// Guild id of the command, if not global.
-            [?] guild_id: Option<Snowflake>,
-            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-            name: String,
-            /// 1-100 character description.
-            description: String,
             /// The parameters for the command.
+            ///
+            /// *Note: Required options must be listed before optional options.*
             options: Vec<ApplicationCommandOption>,
-            /// Whether the command is enabled by default when the app is added to a
-            /// guild (default `true`).
-            [?] default_permission: Option<bool>,
         },
-        User = 2 {
-            /// Unique id of the command.
-            id: Snowflake,
-            /// Unique id of the parent application.
-            application_id: Snowflake,
-            /// Guild id of the command, if not global.
-            [?] guild_id: Option<Snowflake>,
-            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-            name: String,
-            /// 1-100 character description.
-            description: String,
-            /// Whether the command is enabled by default when the app is added to a
-            /// guild (default `true`).
-            [?] default_permission: Option<bool>,
-        },
-        Message = 3 {
-            /// Unique id of the command.
-            id: Snowflake,
-            /// Unique id of the parent application.
-            application_id: Snowflake,
-            /// Guild id of the command, if not global.
-            [?] guild_id: Option<Snowflake>,
-            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-            name: String,
-            /// 1-100 character description.
-            description: String,
-            /// Whether the command is enabled by default when the app is added to a
-            /// guild (default `true`).
-            [?] default_permission: Option<bool>,
-        },
+        /// A UI-based command that shows up when you right click or tap on a user.
+        User = 2,
+        /// A UI-based command that shows up when you right click or tap on a message.
+        Message = 3,
     }
 }
 
@@ -188,46 +181,63 @@ pub struct ApplicationCommandOptionChoice<T> {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GuildApplicationCommandPermissions {
     /// The id of the command.
-    pub id: Snowflake,
+    pub id: ApplicationCommandId,
     /// The id of the application the command belongs to.
-    pub application_id: Snowflake,
+    pub application_id: ApplicationId,
     /// The id of the guild.
-    pub guild_id: Snowflake,
+    pub guild_id: GuildId,
     /// The permissions for the command in the guild.
     pub permissions: Vec<ApplicationCommandPermission>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ApplicationCommandPermission {
-    /// The id of the role or user.
-    pub id: Snowflake,
-    /// Role or user.
-    #[serde(rename = "type")]
+    /// The type of application command permission.
+    #[serde(flatten)]
     pub kind: ApplicationCommandPermissionType,
     /// `true` to allow, `false` to disallow.
     pub permission: bool,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct ApplicationCommandPermissionType(pub u8);
+serde_inner_enum! {
+    #[derive(Clone, Debug)]
+    pub enum ApplicationCommandPermissionType = "type" {
+        Role = 1 {
+            /// The ID of the role.
+            id: RoleId,
+        },
+        User = 2 {
+            /// The ID of the user.
+            id: UserId,
+        },
+    }
+}
 
-impl ApplicationCommandPermissionType {
-    pub const ROLE: ApplicationCommandPermissionType =
-        ApplicationCommandPermissionType(1);
-    pub const USER: ApplicationCommandPermissionType =
-        ApplicationCommandPermissionType(2);
+snowflake_newtype! {
+    /// A unique ID for an interaction.
+    pub struct InteractionId;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Interaction {
     /// Id of the interaction.
-    pub id: Snowflake,
+    pub id: InteractionId,
     /// Id of the application this interaction is for.
-    pub application_id: Snowflake,
+    pub application_id: ApplicationId,
     /// The type of the command.
     #[serde(flatten)]
     pub kind: InteractionType,
+    /// The guild it was sent from.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub guild_id: Option<GuildId>,
+    /// The channel it was sent from.
+    pub channel_id: ChannelId,
+    /// Guild member data for the invoking user, including permissions.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub member: Option<GuildMember>,
+    /// User object for the invoking user, if invoked in a DM.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user: Option<User>,
     /// A continuation token for responding to the interaction.
     pub token: String,
     /// Auto-incrementing version identifier updated during substantial record
@@ -240,86 +250,60 @@ serde_inner_enum! {
     pub enum InteractionType = "type" {
         Ping = 1,
         ApplicationCommand = 2 {
-            /// The guild it was sent from.
-            [?] guild_id: Option<Snowflake>,
-            /// The channel it was sent from.
-            channel_id: Snowflake,
-            /// Guild member data for the invoking user, including permissions.
-            [?] member: Option<GuildMember>,
-            /// User object for the invoking user, if invoked in a DM.
-            [?] user: Option<User>,
             /// The command data payload.
             data: ApplicationCommandInteractionData,
+            /// The selected language of the invoking user.
+            locale: String,
         },
         MessageComponent = 3 {
-            /// The guild it was sent from.
-            [?] guild_id: Option<Snowflake>,
-            /// The channel it was sent from.
-            channel_id: Snowflake,
-            /// Guild member data for the invoking user, including permissions.
-            [?] member: Option<GuildMember>,
-            /// User object for the invoking user, if invoked in a DM.
-            [?] user: Option<User>,
             /// The message the component was attached to.
             message: Message,
             /// The type of the component.
             component_type: ComponentType,
+            /// The selected language of the invoking user.
+            locale: String,
         },
         Autocomplete = 4 {
-            /// The guild it was sent from.
-            [?] guild_id: Option<Snowflake>,
-            /// The channel it was sent from.
-            channel_id: Snowflake,
-            /// Guild member data for the invoking user, including permissions.
-            [?] member: Option<GuildMember>,
-            /// User object for the invoking user, if invoked in a DM.
-            [?] user: Option<User>,
+            /// The selected language of the invoking user.
+            locale: String,
         },
         ModalSubmit = 5 {
-            /// The guild it was sent from.
-            [?] guild_id: Option<Snowflake>,
-            /// The channel it was sent from.
-            channel_id: Snowflake,
-            /// Guild member data for the invoking user, including permissions.
-            [?] member: Option<GuildMember>,
-            /// User object for the invoking user, if invoked in a DM.
-            [?] user: Option<User>,
             /// The message the component was attached to.
             message: Message,
-            // /// TODO:  The command data payload.
+            // TODO: /// The command data payload.
             // data: ApplicationCommandInteractionData,
+            /// The selected language of the invoking user.
+            locale: String,
         },
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ApplicationCommandInteractionData {
+    /// The ID of the invoked command.
+    pub id: ApplicationCommandId,
+    /// The name of the invoked command.
+    pub name: String,
+    /// The type of the invoked command.
+    pub kind: ApplicationCommandInteractionDataType,
+}
+
 serde_inner_enum! {
     #[derive(Clone, Debug)]
-    pub enum ApplicationCommandInteractionData = "type" {
+    pub enum ApplicationCommandInteractionDataType = "type" {
         SlashCommand = 1 {
-            /// The ID of the invoked command.
-            id: Snowflake,
-            /// The name of the invoked command.
-            name: String,
             /// Converted users + roles + channels.
             [?] resolved: Option<ApplicationCommandInteractionDataResolved>,
             /// The params + values from the user.
             [?] options: Option<Vec<ApplicationCommandInteractionDataOption>>,
         },
         User = 2 {
-            /// The ID of the invoked command.
-            id: Snowflake,
-            /// The name of the invoked command.
-            name: String,
             /// ID the of user.
-            target_id: Snowflake,
+            target_id: UserId,
         },
         Message = 3 {
-            /// The ID of the invoked command.
-            id: Snowflake,
-            /// The name of the invoked command.
-            name: String,
             /// ID the of message.
-            target_id: Snowflake,
+            target_id: MessageId,
         },
     }
 }
@@ -355,6 +339,35 @@ pub struct ApplicationCommandInteractionDataOption {
     pub value: ApplicationCommandInteractionDataOptionValue,
 }
 
+snowflake_newtype! {
+    /// A unique ID for a user or role.
+    pub struct MentionableId;
+}
+
+impl From<MentionableId> for UserId {
+    fn from(id: MentionableId) -> Self {
+        id.0.into()
+    }
+}
+
+impl From<UserId> for MentionableId {
+    fn from(id: UserId) -> Self {
+        id.0.into()
+    }
+}
+
+impl From<MentionableId> for RoleId {
+    fn from(id: MentionableId) -> Self {
+        id.0.into()
+    }
+}
+
+impl From<RoleId> for MentionableId {
+    fn from(id: RoleId) -> Self {
+        id.0.into()
+    }
+}
+
 serde_inner_enum! {
     #[derive(Clone, Debug)]
     pub enum ApplicationCommandInteractionDataOptionValue = "type" {
@@ -374,16 +387,16 @@ serde_inner_enum! {
             value: bool,
         },
         User = 6 {
-            value: Snowflake,
+            value: UserId,
         },
         Channel = 7 {
-            value: Snowflake,
+            value: ChannelId,
         },
         Role = 8 {
-            value: Snowflake,
+            value: RoleId,
         },
         Mentionable = 9 {
-            value: Snowflake,
+            value: MentionableId,
         },
         Number = 10 {
             value: f64,
@@ -395,16 +408,22 @@ serde_inner_enum! {
 pub struct ApplicationCommandInteractionDataResolved {
     /// The IDs and [User] objects.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub users: Option<HashMap<Snowflake, User>>,
+    pub users: Option<HashMap<UserId, User>>,
     /// The IDs and partial [GuildMember] objects.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub members: Option<HashMap<Snowflake, GuildMember>>,
+    pub members: Option<HashMap<UserId, GuildMember>>,
     /// The IDs and [Role] objects.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub roles: Option<HashMap<Snowflake, Role>>,
+    pub roles: Option<HashMap<RoleId, Role>>,
     /// The IDs and partial [Channel] objects.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub channels: Option<HashMap<Snowflake, Channel>>,
+    pub channels: Option<HashMap<ChannelId, Channel>>,
+    /// The IDs and partial [Message] objects.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub messages: Option<HashMap<MessageId, Message>>,
+    /// The IDs and [Attachment] objects.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub attachments: Option<HashMap<AttachmentId, Attachment>>,
 }
 
 serde_inner_enum! {
@@ -454,39 +473,44 @@ bitflags! {
     #[derive(Default, Serialize, Deserialize)]
     #[serde(transparent)]
     pub struct InteractionResponseDataFlags: u32 {
+        /// Do not include any embeds when serializing this message.
+        const SUPPRESS_EMBEDS = 1 << 2;
         /// Only the user receiving the message can see it.
         const EPHEMERAL = 1 << 6;
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct CreateApplicationCommand {
+    /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
+    pub name: String,
+    /// Localization dictionary for the `name` field. Values follow the same
+    /// restrictions as `name`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name_localizations: Option<HashMap<String, String>>,
+    /// 1-100 character description.
+    pub description: String,
+    /// Localization dictionary for the `description` field. Values follow the
+    /// same restrictions as `description`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description_localizations: Option<HashMap<String, String>>,
+    /// Whether the command is enabled by default when the app is added to a
+    /// guild (default `true`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_permission: Option<bool>,
+    /// Type of command.
+    pub kind: CreateApplicationCommandType,
+}
+
 serde_inner_enum! {
     #[derive(Clone, Debug)]
-    pub enum CreateApplicationCommand = "type" {
+    pub enum CreateApplicationCommandType = "type" {
         ChatInput = 1 {
-            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-            name: String,
-            /// 1-100 character description.
-            description: String,
             /// The parameters for the command.
             [?] options: Option<Vec<ApplicationCommandOption>>,
-            /// Whether the command is enabled by default when the app is added to a
-            /// guild (default `true`).
-            [?] default_permission: Option<bool>,
         },
-        User = 2 {
-            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-            name: String,
-            /// Whether the command is enabled by default when the app is added to a
-            /// guild (default `true`).
-            [?] default_permission: Option<bool>,
-        },
-        Message = 3 {
-            /// 1-32 lowercase character name matching `^[\w-]{1,32}$`.
-            name: String,
-            /// Whether the command is enabled by default when the app is added to a
-            /// guild (default `true`).
-            [?] default_permission: Option<bool>,
-        },
+        User = 2,
+        Message = 3,
     }
 }
 
@@ -499,7 +523,7 @@ pub struct CreateGuildApplicationCommandPermissions {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BatchEditGuildApplicationCommandPermissions {
     /// The id of the command.
-    pub id: Snowflake,
+    pub id: ApplicationCommandId,
     /// The permissions for the command in the guild.
     pub permissions: Vec<ApplicationCommandPermission>,
 }

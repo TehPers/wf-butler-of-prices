@@ -45,7 +45,7 @@ impl CommandRegistry {
         )
         .await;
         if let Err(error) = result.as_ref() {
-            error!("{:#?}", error);
+            error!("{error:#?}");
         }
         result.context("error overriding application commands")?;
 

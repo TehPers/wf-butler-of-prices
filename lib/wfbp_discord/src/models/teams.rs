@@ -1,19 +1,27 @@
-use crate::models::{Snowflake, User};
+use crate::{
+    models::{User, UserId},
+    snowflake_newtype,
+};
 use serde::{Deserialize, Serialize};
+
+snowflake_newtype! {
+    /// A unique ID for a team.
+    pub struct TeamId;
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Team {
     pub icon: Option<String>,
-    pub id: Snowflake,
+    pub id: TeamId,
     pub members: Vec<TeamMember>,
     pub name: String,
-    pub owner_user_id: Snowflake,
+    pub owner_user_id: UserId,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TeamMember {
     pub membership_state: MembershipState,
-    pub team_id: Snowflake,
+    pub team_id: TeamId,
     pub user: User,
 }
 

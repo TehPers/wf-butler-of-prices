@@ -67,7 +67,7 @@ macro_rules! builder {
             $($extra_field_name : $extra_field_ty,)*
         }
 
-        #[doc = concat!("[", stringify!($name), "] that is ready to be built.")]
+        #[doc = concat!("[`", stringify!($name), "`] that is ready to be built.")]
         pub type $ready = $name<$($req_field_ty),*>;
 
         const _: () = {

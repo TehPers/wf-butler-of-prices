@@ -1,50 +1,52 @@
-use crate::models::{GuildMember, Snowflake, Timestamp};
+use crate::models::{
+    ChannelId, GuildId, GuildMember, Timestamp, UserId,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VoiceState {
     /// The guild id this voice state is for.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    guild_id: Option<Snowflake>,
+    pub guild_id: Option<GuildId>,
     /// The channel id this user is connected to.
-    channel_id: Option<Snowflake>,
+    pub channel_id: Option<ChannelId>,
     /// The user id this voice state is for.
-    user_id: Snowflake,
+    pub user_id: UserId,
     /// The guild member this voice state is for.
-    member: GuildMember,
+    pub member: GuildMember,
     /// The session id for this voice state.
-    session_id: String,
+    pub session_id: String,
     /// Whether this user is deafened by the server.
-    deaf: bool,
+    pub deaf: bool,
     /// Whether this user is muted by the server.
-    mute: bool,
+    pub mute: bool,
     /// Whether this user is locally deafened.
-    self_deaf: bool,
+    pub self_deaf: bool,
     /// Whether this user is locally muted.
-    self_mute: bool,
+    pub self_mute: bool,
     /// Whether this user is streaming using "Go Live".
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    self_stream: Option<bool>,
+    pub self_stream: Option<bool>,
     /// Whether this user's camera is enabled.
-    self_video: bool,
+    pub self_video: bool,
     /// Whether this user is muted by the current user.
-    suppress: bool,
+    pub suppress: bool,
     /// The time at which the user requested to speak.
-    request_to_speak_timestamp: Timestamp,
+    pub request_to_speak_timestamp: Timestamp,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct VoiceRegion {
     /// Unique ID for the region.
-    id: String,
+    pub id: String,
     /// Name of the region.
-    name: String,
+    pub name: String,
     /// True if this is a vip-only server.
-    vip: bool,
+    pub vip: bool,
     /// True for a single server that is closest to the current user's client.
-    optimal: bool,
+    pub optimal: bool,
     /// Whether this is a deprecated voice region (avoid switching to these).
-    deprecated: bool,
+    pub deprecated: bool,
     /// Whether this is a custom voice region (used for events/etc).
-    custom: bool,
+    pub custom: bool,
 }

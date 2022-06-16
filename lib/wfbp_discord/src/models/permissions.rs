@@ -1,4 +1,7 @@
-use crate::models::Snowflake;
+use crate::{
+    models::{IntegrationId, UserId},
+    snowflake_newtype,
+};
 use bitflags::bitflags;
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::Formatter;
@@ -88,9 +91,14 @@ impl<'de> Deserialize<'de> for Permissions {
     }
 }
 
+snowflake_newtype! {
+    /// A unique ID for a role.
+    pub struct RoleId;
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Role {
-    pub id: Snowflake,
+    pub id: RoleId,
     pub name: String,
     pub color: u32,
     pub hoist: bool,
@@ -105,9 +113,9 @@ pub struct Role {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RoleTags {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub bot_id: Option<Snowflake>,
+    pub bot_id: Option<UserId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub integration_id: Option<Snowflake>,
+    pub integration_id: Option<IntegrationId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub premium_subscriber: Option<PremiumSubscriber>,
 }

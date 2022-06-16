@@ -1,3 +1,5 @@
+#![warn(clippy::all, clippy::pedantic)]
+
 mod builders;
 mod command;
 mod command_registry;

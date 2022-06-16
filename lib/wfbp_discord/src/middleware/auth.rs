@@ -1,5 +1,5 @@
 use crate::{
-    models::{ClientCredentialsRequest, Snowflake},
+    models::{ClientCredentialsRequest, ApplicationId},
     routes::{AuthenticateClientCredentialsGrant, DiscordRouteInfo},
 };
 use derive_more::{Display, Error};
@@ -22,7 +22,7 @@ use zeroize::Zeroizing;
 #[derive(Clone, Debug)]
 pub struct AuthenticationLayer<C> {
     auth_client: C,
-    client_id: Snowflake,
+    client_id: ApplicationId,
     client_secret: Arc<ClientSecret>,
     access_token: Arc<RwLock<Option<ClientSecret>>>,
 }
@@ -30,7 +30,7 @@ pub struct AuthenticationLayer<C> {
 impl<C> AuthenticationLayer<C> {
     pub fn new(
         auth_client: C,
-        client_id: Snowflake,
+        client_id: ApplicationId,
         client_secret: Arc<ClientSecret>,
     ) -> Self {
         AuthenticationLayer {
@@ -62,7 +62,7 @@ where
 #[derive(Clone, Debug)]
 pub struct AuthenticationService<C, Next> {
     auth_client: C,
-    client_id: Snowflake,
+    client_id: ApplicationId,
     client_secret: Arc<ClientSecret>,
     access_token: Arc<RwLock<Option<ClientSecret>>>,
     next: Arc<Mutex<Next>>,
@@ -175,7 +175,7 @@ where
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct ClientSecret(Zeroizing<String>);
 
 impl Debug for ClientSecret {

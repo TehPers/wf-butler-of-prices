@@ -1,11 +1,24 @@
-use crate::models::{Snowflake, Team, User};
+use crate::{
+    models::{GuildId, Team, User},
+    snowflake_newtype,
+};
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
+
+snowflake_newtype! {
+    /// A unique ID for an application.
+    pub struct ApplicationId;
+}
+
+snowflake_newtype! {
+    /// A unique ID for a game SKU.
+    pub struct GameSkuId;
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Application {
     /// The id of the app.
-    pub id: Snowflake,
+    pub id: ApplicationId,
     /// The name of the app.
     pub name: String,
     /// The icon hash of the app.
@@ -41,11 +54,11 @@ pub struct Application {
     /// If this application is a game sold on Discord, this field will be the
     /// guild to which it has been linked.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub guild_id: Option<Snowflake>,
+    pub guild_id: Option<GuildId>,
     /// If this application is a game sold on Discord, this field will be the
     /// id of the "Game SKU" that is created, if exists.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub primary_sku_id: Option<Snowflake>,
+    pub primary_sku_id: Option<GameSkuId>,
     /// If this application is a game sold on Discord, this field will be the
     /// URL slug that links to the store page.
     #[serde(default, skip_serializing_if = "Option::is_none")]

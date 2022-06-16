@@ -2,11 +2,7 @@ use crate::{FromOption, FromOptionError};
 use async_recursion::async_recursion;
 use async_trait::async_trait;
 use derive_more::{Display, Error};
-use std::{
-    borrow::Cow,
-    fmt::{Debug, Formatter},
-    sync::Arc,
-};
+use std::{borrow::Cow, sync::Arc};
 use wfbp_discord::{
     models::{
         ApplicationCommand, ApplicationCommandInteractionDataOption,
@@ -19,6 +15,7 @@ use wfbp_discord::{
     DiscordRestClient,
 };
 use wfbp_http::RequestError;
+use wfbp_util::impl_partial_debug;
 
 pub struct SlashCommand {
     pub name: Cow<'static, str>,
@@ -110,15 +107,13 @@ async fn handle_options(
     Ok(())
 }
 
-impl Debug for SlashCommand {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("SlashCommand")
-            .field("name", &self.name)
-            .field("description", &self.description)
-            .field("options", &self.options)
-            .field("default_permission", &self.default_permission)
-            .finish_non_exhaustive()
-    }
+impl_partial_debug! {
+    struct SlashCommand = [
+        name,
+        description,
+        options,
+        default_permission,
+    ]
 }
 
 #[async_trait]
@@ -173,17 +168,17 @@ pub struct SlashCommandData {
 #[non_exhaustive]
 #[derive(Debug, Display, Error)]
 pub enum HandleInteractionError {
-    #[display(fmt = "unknown command '{}'", _0)]
+    #[display(fmt = "unknown command '{_0}'")]
     UnknownCommand(#[error(ignore)] String),
-    #[display(fmt = "unknown option: '{}'", _0)]
+    #[display(fmt = "unknown option: '{_0}'")]
     UnknownOption(#[error(ignore)] String),
-    #[display(fmt = "{}", _0)]
+    #[display(fmt = "{_0}")]
     OptionError(GetOptionError),
-    #[display(fmt = "invalid options: '{}'", _0)]
+    #[display(fmt = "invalid options: '{_0}'")]
     InvalidData(#[error(ignore)] String),
     #[display(fmt = "missing input options from interaction data")]
     MissingOptions,
-    #[display(fmt = "{}", _0)]
+    #[display(fmt = "{_0}")]
     Custom(#[error(ignore)] anyhow::Error),
 }
 
@@ -412,54 +407,18 @@ impl From<&CommandOption> for ApplicationCommandOption {
     }
 }
 
-impl Debug for CommandOptionType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            CommandOptionType::SubCommand {
-                options,
-                callback: _,
-            } => f
-                .debug_struct("SubCommand")
-                .field("options", options)
-                .finish_non_exhaustive(),
-            CommandOptionType::SubCommandGroup { options } => f
-                .debug_struct("SubCommandGroup")
-                .field("options", options)
-                .finish(),
-            CommandOptionType::String { required, choices } => f
-                .debug_struct("String")
-                .field("required", required)
-                .field("choices", choices)
-                .finish(),
-            CommandOptionType::Integer { required, choices } => f
-                .debug_struct("Integer")
-                .field("required", required)
-                .field("choices", choices)
-                .finish(),
-            CommandOptionType::Number { required, choices } => f
-                .debug_struct("Number")
-                .field("required", required)
-                .field("choices", choices)
-                .finish(),
-            CommandOptionType::Boolean { required } => f
-                .debug_struct("Boolean")
-                .field("required", required)
-                .finish(),
-            CommandOptionType::User { required } => {
-                f.debug_struct("User").field("required", required).finish()
-            }
-            CommandOptionType::Channel { required } => f
-                .debug_struct("Channel")
-                .field("required", required)
-                .finish(),
-            CommandOptionType::Role { required } => {
-                f.debug_struct("Role").field("required", required).finish()
-            }
-            CommandOptionType::Mentionable { required } => f
-                .debug_struct("Mentionable")
-                .field("required", required)
-                .finish(),
-        }
+impl_partial_debug! {
+    enum CommandOptionType = {
+        [partial] SubCommand = [options],
+        SubCommandGroup = [options],
+        String = [required, choices],
+        Integer = [required, choices],
+        Number = [required, choices],
+        Boolean = [required],
+        User = [required],
+        Channel = [required],
+        Role = [required],
+        Mentionable = [required],
     }
 }
 

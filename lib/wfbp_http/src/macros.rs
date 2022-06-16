@@ -7,7 +7,17 @@ macro_rules! routes {
         $builder
     };
     (@res_body $res:expr, [$body_type:ident]) => {
-        $res.$body_type()
+        {
+            trait ResponseExt: ::std::marker::Sized {
+                /// Gets an empty response without reading the response body.
+                fn empty(self) -> ::std::future::Ready<$crate::reqwest::Result<()>> {
+                    ::std::future::ready(::std::result::Result::Ok(()))
+                }
+            }
+            impl ResponseExt for $crate::reqwest::Response {}
+
+            $res.$body_type()
+        }
     };
     (@query $builder:expr, $query:expr) => {
         $builder.query($query)
@@ -21,8 +31,12 @@ macro_rules! routes {
     {
         $(
             (
+                $(#[$route_attr:meta])*
                 $route_ty:ident {
-                    $($route_field:ident : $route_field_type:ty),*
+                    $(
+                        $(#[$route_field_attr:meta])*
+                        $route_field:ident : $route_field_type:ty
+                    ),*
                     $(,)?
                 }
                 $(, generics = [$($generics:tt)*])?
@@ -38,12 +52,17 @@ macro_rules! routes {
         $(,)?
     } => {
         $(
+            $(#[$route_attr])*
             #[derive(Clone, Debug)]
             pub struct $route_ty $(<$($generics)*>)? {
-                $(pub $route_field: $route_field_type),*
+                $(
+                    $(#[$route_field_attr])*
+                    pub $route_field: $route_field_type,
+                )*
             }
 
             impl $(<$($generics)*>)? $route_ty $(<$($generics)*>)? {
+                /// Executes this route.
                 pub async fn execute<C>(
                     client: &C
                     $(, $route_field: $route_field_type)*

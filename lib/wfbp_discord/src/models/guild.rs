@@ -1,85 +1,93 @@
-use crate::models::{
-    Channel, Emoji, Permissions, Role, Snowflake, StageInstance, Sticker,
-    Timestamp, User, VoiceState,
+use crate::{
+    models::{
+        ApplicationId, Channel, ChannelId, Emoji, EmojiId, Permissions, Role,
+        RoleId, StageInstance, Sticker, Timestamp, User, UserId, VoiceState,
+    },
+    snowflake_newtype,
 };
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 use std::borrow::Cow;
 
+snowflake_newtype! {
+    /// A unique ID for a guild.
+    pub struct GuildId;
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Guild {
-    id: Snowflake,
-    name: String,
-    icon: Option<String>,
+    pub id: GuildId,
+    pub name: String,
+    pub icon: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    icon_hash: Option<String>,
-    splash: Option<String>,
-    discovery_splash: Option<String>,
+    pub icon_hash: Option<String>,
+    pub splash: Option<String>,
+    pub discovery_splash: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    owner: Option<bool>,
-    owner_id: Snowflake,
+    pub owner: Option<bool>,
+    pub owner_id: UserId,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    permissions: Option<Permissions>,
-    afk_channel_id: Option<Snowflake>,
-    afk_timeout: u32,
+    pub permissions: Option<Permissions>,
+    pub afk_channel_id: Option<ChannelId>,
+    pub afk_timeout: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    widget_enabled: Option<bool>,
+    pub widget_enabled: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    widget_channel_id: Option<Snowflake>,
-    verification_level: VerificationLevel,
-    default_message_notifications: MessageNotificationsLevel,
-    explicit_content_filter: ExplicitContentFilterLevel,
-    roles: Vec<Role>,
-    emojis: Vec<Emoji>,
-    features: Vec<GuildFeature>,
-    mfa_level: MultiFactorLevel,
-    application_id: Option<Snowflake>,
-    system_channel_id: Option<Snowflake>,
-    system_channel_flags: SystemChannelFlags,
-    rules_channel_id: Option<Snowflake>,
+    pub widget_channel_id: Option<UserId>,
+    pub verification_level: VerificationLevel,
+    pub default_message_notifications: MessageNotificationsLevel,
+    pub explicit_content_filter: ExplicitContentFilterLevel,
+    pub roles: Vec<Role>,
+    pub emojis: Vec<Emoji>,
+    pub features: Vec<GuildFeature>,
+    pub mfa_level: MultiFactorLevel,
+    pub application_id: Option<ApplicationId>,
+    pub system_channel_id: Option<ChannelId>,
+    pub system_channel_flags: SystemChannelFlags,
+    pub rules_channel_id: Option<ChannelId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    joined_at: Option<Timestamp>,
+    pub joined_at: Option<Timestamp>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    large: Option<bool>,
+    pub large: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    unavailable: Option<bool>,
-    member_count: Option<u32>,
+    pub unavailable: Option<bool>,
+    pub member_count: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    voice_states: Option<Vec<VoiceState>>,
+    pub voice_states: Option<Vec<VoiceState>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    members: Option<Vec<GuildMember>>,
+    pub members: Option<Vec<GuildMember>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    channels: Option<Vec<Channel>>,
+    pub channels: Option<Vec<Channel>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    threads: Option<Vec<Channel>>,
+    pub threads: Option<Vec<Channel>>,
     // TODO: is this needed?
     // #[serde(default, skip_serializing_if = "Option::is_none")]
-    // presences: Option<Vec<PresenceUpdate>>,
+    // pub presences: Option<Vec<PresenceUpdate>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    max_presences: Option<u32>,
+    pub max_presences: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    max_members: Option<u32>,
-    vanity_code_url: Option<String>,
-    description: Option<String>,
-    banner: Option<String>,
-    premium_tier: PremiumTier,
+    pub max_members: Option<u32>,
+    pub vanity_code_url: Option<String>,
+    pub description: Option<String>,
+    pub banner: Option<String>,
+    pub premium_tier: PremiumTier,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    premium_subscription_count: Option<u8>,
-    preferred_locale: String,
-    public_updates_channel_id: Option<Snowflake>,
+    pub premium_subscription_count: Option<u8>,
+    pub preferred_locale: String,
+    pub public_updates_channel_id: Option<ChannelId>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    max_video_channel_users: Option<u32>,
+    pub max_video_channel_users: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    approximate_member_count: Option<u32>,
+    pub approximate_member_count: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    approximate_presence_count: Option<u32>,
+    pub approximate_presence_count: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    welcome_screen: Option<WelcomeScreen>,
-    nsfw_level: NsfwLevel,
+    pub welcome_screen: Option<WelcomeScreen>,
+    pub nsfw_level: NsfwLevel,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    stage_instances: Option<Vec<StageInstance>>,
+    pub stage_instances: Option<Vec<StageInstance>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    stickers: Option<Vec<Sticker>>,
+    pub stickers: Option<Vec<Sticker>>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
@@ -248,7 +256,7 @@ impl GuildFeature {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GuildPreview {
     /// Guild id.
-    pub id: Snowflake,
+    pub id: GuildId,
     /// Guild name (2-100 characters).
     pub name: String,
     /// Icon hash.
@@ -271,71 +279,76 @@ pub struct GuildPreview {
 
 pub struct GuildWidget {
     pub enabled: bool,
-    pub channel_id: Option<Snowflake>,
+    pub channel_id: Option<ChannelId>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GuildMember {
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    user: Option<User>,
+    pub user: Option<User>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    nick: Option<String>,
-    roles: Vec<Snowflake>,
-    joined_at: Timestamp,
+    pub nick: Option<String>,
+    pub roles: Vec<RoleId>,
+    pub joined_at: Timestamp,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    premium_since: Option<Timestamp>,
-    deaf: bool,
-    mute: bool,
+    pub premium_since: Option<Timestamp>,
+    pub deaf: bool,
+    pub mute: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pending: Option<bool>,
+    pub pending: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    permissions: Option<Permissions>,
+    pub permissions: Option<Permissions>,
+}
+
+snowflake_newtype! {
+    /// A unique ID for an integration.
+    pub struct IntegrationId;
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Integration {
     /// Integration id.
-    id: Snowflake,
+    pub id: IntegrationId,
     /// Integration name.
-    name: String,
+    pub name: String,
     #[serde(rename = "type")]
     /// Integration type (twitch, youtube, or discord).
-    kind: String,
+    pub kind: String,
     /// Is this integration enabled.
-    enabled: bool,
+    pub enabled: bool,
     /// Is this integration syncing.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    syncing: Option<bool>,
+    pub syncing: Option<bool>,
     /// Id that this integration uses for "subscribers".
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    role_id: Option<Snowflake>,
+    pub role_id: Option<RoleId>,
     /// Whether emoticons should be synced for this integration (twitch only
     /// currently).
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    enable_emoticons: Option<bool>,
+    pub enable_emoticons: Option<bool>,
     /// The behavior of expiring subscribers.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    expire_behavior: Option<IntegrationExpireBehavior>,
+    pub expire_behavior: Option<IntegrationExpireBehavior>,
     /// The grace period (in days) before expiring subscribers.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    expire_grace_period: Option<u32>,
+    pub expire_grace_period: Option<u32>,
     /// User for this integration.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    user: Option<User>,
+    pub user: Option<User>,
     /// Integration account information.
-    account: IntegrationAccount,
+    pub account: IntegrationAccount,
     /// When this integration was last synced.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    synced_at: Option<Timestamp>,
+    pub synced_at: Option<Timestamp>,
     /// How many subscribers this integration has.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    subscriber_count: Option<u32>,
+    pub subscriber_count: Option<u32>,
     /// Has this integration been revoked.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    revoked: Option<bool>,
+    pub revoked: Option<bool>,
     /// The bot/OAuth2 application for discord integrations.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    application: Option<IntegrationApplication>,
+    pub application: Option<IntegrationApplication>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
@@ -351,53 +364,53 @@ impl IntegrationExpireBehavior {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct IntegrationAccount {
     /// Id of the account.
-    id: String,
+    pub id: String,
     /// Name of the account.
-    name: String,
+    pub name: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct IntegrationApplication {
     /// The id of the app.
-    id: Snowflake,
+    pub id: ApplicationId,
     /// The name of the app.
-    name: String,
+    pub name: String,
     /// The icon hash of the app.
-    icon: Option<String>,
+    pub icon: Option<String>,
     /// The description of the app.
-    description: String,
+    pub description: String,
     /// The summary of the app.
-    summary: String,
+    pub summary: String,
     /// The bot associated with this application.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    bot: Option<User>,
+    pub bot: Option<User>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Ban {
     /// The reason for the ban.
-    reason: Option<String>,
+    pub reason: Option<String>,
     /// The banned user.
-    user: User,
+    pub user: User,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WelcomeScreen {
     /// 	The server description shown in the welcome screen.
-    description: Option<String>,
+    pub description: Option<String>,
     /// The channels shown in the welcome screen, up to 5.
-    welcome_channels: Vec<WelcomeScreenChannel>,
+    pub welcome_channels: Vec<WelcomeScreenChannel>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WelcomeScreenChannel {
     /// The channel's id.
-    channel_id: Snowflake,
+    pub channel_id: ChannelId,
     /// The description shown for the channel.
-    description: String,
+    pub description: String,
     /// The emoji id, if the emoji is custom.
-    emoji_id: Option<Snowflake>,
+    pub emoji_id: Option<EmojiId>,
     /// The emoji name if custom, the unicode character if standard, or null if
     /// no emoji is set.
-    emoji_name: Option<String>,
+    pub emoji_name: Option<String>,
 }

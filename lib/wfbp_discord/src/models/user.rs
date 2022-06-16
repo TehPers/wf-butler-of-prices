@@ -1,10 +1,15 @@
-use crate::models::{Integration, Snowflake};
+use crate::{models::Integration, snowflake_newtype};
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
+snowflake_newtype! {
+    /// A unique ID for a user.
+    pub struct UserId;
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct User {
-    id: Snowflake,
+    id: UserId,
     username: String,
     discriminator: String,
     avatar: Option<String>,

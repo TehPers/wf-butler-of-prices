@@ -1,20 +1,28 @@
-use crate::models::Snowflake;
+use crate::{
+    models::{ChannelId, GuildId},
+    snowflake_newtype,
+};
 use serde::{Deserialize, Serialize};
+
+snowflake_newtype! {
+    /// A unique ID for a stage.
+    pub struct StageId;
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct StageInstance {
     /// The id of this Stage instance.
-    id: Snowflake,
+    pub id: StageId,
     /// The guild id of the associated Stage channel.
-    guild_id: Snowflake,
+    pub guild_id: GuildId,
     /// The id of the associated Stage channel.
-    channel_id: Snowflake,
+    pub channel_id: ChannelId,
     /// The topic of the Stage instance (1-120 characters).
-    topic: String,
+    pub topic: String,
     /// The privacy level of the Stage instance.
-    privacy_level: PrivacyLevel,
+    pub privacy_level: PrivacyLevel,
     /// Whether or not Stage Discovery is disabled.
-    discoverable_disabled: bool,
+    pub discoverable_disabled: bool,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]

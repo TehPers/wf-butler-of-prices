@@ -5,6 +5,7 @@ use std::{
     num::TryFromIntError,
 };
 
+/// A unique ID for a Discord entity (user, role, channel, guild, etc).
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct Snowflake(u64);
 
@@ -84,6 +85,7 @@ impl<'de> Deserialize<'de> for Snowflake {
     }
 }
 
+/// A timestamp attached to a [`Snowflake`].
 #[derive(
     Clone,
     Copy,
@@ -154,4 +156,30 @@ impl<'de> Deserialize<'de> for Nonce {
 
         deserializer.deserialize_any(NonceVisitor)
     }
+}
+
+#[macro_export]
+macro_rules! snowflake_newtype {
+    {
+        $(#[$attr:meta])*
+        $visibility:vis struct $name:ident;
+    } => {
+        $(#[$attr])*
+        #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+        #[derive($crate::serde::Serialize, $crate::serde::Deserialize)]
+        #[derive(
+            $crate::derive_more::From,
+            $crate::derive_more::Into,
+            $crate::derive_more::Display,
+        )]
+        #[serde(transparent)]
+        $visibility struct $name(pub $crate::models::Snowflake);
+
+        impl $name {
+            /// Converts into the inner value.
+            pub fn into_inner(self) -> $crate::models::Snowflake {
+                self.0
+            }
+        }
+    };
 }

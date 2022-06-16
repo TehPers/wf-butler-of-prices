@@ -1,6 +1,6 @@
 use crate::{
     middleware::{AuthenticationLayer, ClientSecret, RateLimitLayer},
-    models::Snowflake,
+    models::ApplicationId,
     routes::DiscordRouteInfo,
 };
 use async_trait::async_trait;
@@ -16,6 +16,7 @@ use wfbp_http::{
     RequestError, RestClient, RestRequestLayer, Route, StandardRestClient,
 };
 
+/// A client for interacting with the Discord REST API.
 #[derive(Clone, Debug)]
 pub struct DiscordRestClient {
     inner: StandardRestClient,
@@ -24,9 +25,10 @@ pub struct DiscordRestClient {
 impl DiscordRestClient {
     pub const BASE_URL: &'static str = "https://discord.com/api/v9";
 
+    /// Creates a new Discord REST API client.
     pub fn new(
         client: Client,
-        client_id: Snowflake,
+        client_id: ApplicationId,
         client_secret: Arc<ClientSecret>,
     ) -> Self {
         let auth_client =
