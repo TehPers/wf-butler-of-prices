@@ -5,7 +5,7 @@
     "vadimcn.vscode-lldb",
     "irongeek.vscode-env",
     "tamasfe.even-better-toml",
-    "matklad.rust-analyzer",
+    "rust-lang.rust-analyzer",
     "redhat.vscode-yaml",
     "bungcip.better-toml",
     "humao.rest-client"
