@@ -3,3 +3,37 @@ name = "wfbp_util"
 version = "0.1.0"
 edition = "2021"
 publish = false
+
+[dependencies]
+# Web server
+axum = { version = "0.5", default_features = false }
+tower = { version = "0.4" }
+futures = "0.3"
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+http-serde = "1"
+# Tracing
+tracing = "0.1"
+# Errors
+anyhow = "1"
+# wfbp dependencies
+wfbp_azure = { path = "../../lib/wfbp_azure" }
+wfbp_discord = { path = "../../lib/wfbp_discord", features = ["rustls-tls"] }
+# Signature validation
+hex = "0.4"
+ed25519-dalek = { version = "1", default-features = false, features = [
+    "std",
+    "u64_backend",
+    "serde",
+] }
+# Util
+derive_more = { version = "0.99", default_features = false, features = [
+    "display",
+    "error",
+    "from",
+] }
+
+[dev-dependencies]
+# Async
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }

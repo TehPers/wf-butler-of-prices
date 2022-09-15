@@ -1,9 +1,8 @@
 mod controllers;
-mod middleware;
 mod models;
 mod startup;
 
-#[actix_web::main]
+#[tokio::main]
 async fn main() -> anyhow::Result<()> {
     use tracing::{error, Level};
     use tracing_subscriber::FmtSubscriber;
