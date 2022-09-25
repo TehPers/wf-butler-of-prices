@@ -13,6 +13,11 @@ axum = { version = "0.5", default_features = false, features = [
 ] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 tower = { version = "0.4", features = ["util"] }
+tower-http = { version = "0.3", features = [
+    "compression-br",
+    "compression-deflate",
+    "compression-gzip",
+] }
 futures = "0.3"
 serde = "1"
 serde_json = "1"
@@ -24,7 +29,6 @@ anyhow = "1"
 # Configuration
 envy = "0.4"
 # wfbp dependencies
-wfbp_azure = { path = "../../lib/wfbp_azure" }
 wfbp_discord = { path = "../../lib/wfbp_discord", features = ["rustls-tls"] }
 wfbp_util = { path = "../../lib/wfbp_util" }
 # Signature validation

@@ -18,7 +18,6 @@ tracing = "0.1"
 # Errors
 anyhow = "1"
 # wfbp dependencies
-wfbp_azure = { path = "../../lib/wfbp_azure" }
 wfbp_discord = { path = "../../lib/wfbp_discord", features = ["rustls-tls"] }
 # Signature validation
 hex = "0.4"

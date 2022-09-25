@@ -6,7 +6,7 @@ use std::{
 };
 
 /// A unique ID for a Discord entity (user, role, channel, guild, etc).
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Default)]
 pub struct Snowflake(u64);
 
 impl Snowflake {
@@ -165,7 +165,7 @@ macro_rules! snowflake_newtype {
         $visibility:vis struct $name:ident;
     } => {
         $(#[$attr])*
-        #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+        #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Default)]
         #[derive($crate::serde::Serialize, $crate::serde::Deserialize)]
         #[derive(
             $crate::derive_more::From,
@@ -176,8 +176,13 @@ macro_rules! snowflake_newtype {
         $visibility struct $name(pub $crate::models::Snowflake);
 
         impl $name {
+            #[doc = concat!("Creates a new ", stringify!($name), ".")]
+            pub const fn new(value: u64) -> Self {
+                $name($crate::models::Snowflake::new(value))
+            }
+
             /// Converts into the inner value.
-            pub fn into_inner(self) -> $crate::models::Snowflake {
+            pub const fn into_inner(self) -> $crate::models::Snowflake {
                 self.0
             }
         }

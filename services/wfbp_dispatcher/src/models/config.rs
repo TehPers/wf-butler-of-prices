@@ -2,12 +2,12 @@ use derive_more::{Deref, DerefMut, From, Into};
 use ed25519_dalek::PublicKey;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use std::borrow::Cow;
-use wfbp_discord::models::Snowflake;
+use wfbp_discord::models::ApplicationId;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Config {
-    pub app_id: Snowflake,
-    pub client_id: Snowflake,
+    pub app_id: ApplicationId,
+    pub client_id: ApplicationId,
     pub client_secret: String,
     #[serde(default)]
     pub ignore_signature: bool,
